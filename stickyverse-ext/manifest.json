@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "StickyVerse ✨",
+  "short_name": "StickyVerse",
+  "description": "Your aesthetic digital workspace — notes, links, ideas & productivity",
+  "version": "1.0.0",
+  "permissions": ["storage", "tabs", "activeTab"],
+  "host_permissions": ["https://kzhovelxcwychkmykirc.supabase.co/*"],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["settings.html", "supabase-config.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

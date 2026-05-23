@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="void">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StickyVerse ✨</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Caveat:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="newtab.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- BACKGROUND -->
+  <div id="bg">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+    <div class="blob b3"></div>
+    <div class="blob b4"></div>
+  </div>
+  <div id="grid-overlay"></div>
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar">
+    <div class="sb-logo">
+      <span class="logo-sticky">Sticky</span><span class="logo-verse">Verse</span>
+      <span class="logo-star">✨</span>
+      <div class="logo-sub">Your creative workspace</div>
+    </div>
+
+    <nav class="sb-nav">
+      <button class="nav-item active" data-view="home">
+        <i class="fa-solid fa-house"></i><span>Home</span>
+      </button>
+      <button class="nav-item" data-view="pinned">
+        <i class="fa-solid fa-thumbtack"></i><span>Pinned</span>
+      </button>
+      <button class="nav-item" data-view="links">
+        <i class="fa-solid fa-link"></i><span>Link Vault</span>
+        <span class="nav-badge" id="link-badge">0</span>
+      </button>
+      <button class="nav-item" data-view="goals">
+        <i class="fa-solid fa-bullseye"></i><span>Goals</span>
+        <span class="nav-badge" id="goal-badge">0</span>
+      </button>
+      <button class="nav-item" data-view="themes">
+        <i class="fa-solid fa-palette"></i><span>Themes</span>
+      </button>
+      <button class="nav-item" data-view="widgets">
+        <i class="fa-solid fa-grip"></i><span>Widgets</span>
+      </button>
+      <button class="nav-item" data-view="settings">
+        <i class="fa-solid fa-gear"></i><span>Settings</span>
+      </button>
+    </nav>
+
+    <div class="sb-streak" id="streak-widget">
+      <div class="streak-header">Daily Streak <span class="streak-fire">🔥</span></div>
+      <div class="streak-count"><span id="streak-num">0</span> days in a row</div>
+      <div class="streak-days">
+        <div class="day-label">M</div><div class="day-label">T</div><div class="day-label">W</div>
+        <div class="day-label">T</div><div class="day-label">F</div><div class="day-label">S</div><div class="day-label">S</div>
+      </div>
+      <div class="streak-dots" id="streak-dots"></div>
+    </div>
+
+    <div class="sb-quote-card">
+      <div class="sb-quote-mark">"</div>
+      <div class="sb-quote-text" id="sb-quote-text">Small progress every day adds up to big results.</div>
+      <div class="sb-quote-author" id="sb-quote-author">— Unknown</div>
+    </div>
+
+    <a href="https://x.com/zero2tenx" target="_blank" class="follow-x-btn" id="follow-x-btn">
+      <svg class="x-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      <span>Follow <strong>@zero2tenx</strong></span>
+    </a>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main id="main">
+
+    <!-- TOP BAR -->
+    <div id="topbar">
+      <div id="cmd-bar">
+        <i class="fa-solid fa-magnifying-glass cmd-icon"></i>
+        <input type="text" id="cmd-input" placeholder="What's on your mind today? ✨">
+        <span class="cmd-hint">⌘K</span>
+        <button id="cmd-add-btn"><i class="fa-solid fa-plus"></i></button>
+      </div>
+      <div class="topbar-right">
+        <button id="save-tab-topbtn" class="top-action-btn save-tab">
+          <i class="fa-solid fa-link"></i> Save Current Tab
+        </button>
+        <button class="top-icon-btn" id="theme-toggle-btn" title="Toggle Theme">
+          <i class="fa-solid fa-sun"></i>
+        </button>
+        <div class="avatar">DK</div>
+      </div>
+    </div>
+
+    <!-- FILTER TABS -->
+    <div id="filter-bar">
+      <button class="filter-tab active" data-filter="all">
+        <i class="fa-solid fa-border-all"></i> All
+      </button>
+      <button class="filter-tab" data-filter="note">
+        <i class="fa-regular fa-sticky-note"></i> Notes
+      </button>
+      <button class="filter-tab" data-filter="task">
+        <i class="fa-solid fa-check-circle"></i> Tasks
+      </button>
+      <button class="filter-tab" data-filter="idea">
+        <i class="fa-regular fa-lightbulb"></i> Ideas
+      </button>
+      <button class="filter-tab" data-filter="quote">
+        <i class="fa-solid fa-quote-left"></i> Quotes
+      </button>
+      <button class="filter-tab" data-filter="link">
+        <i class="fa-solid fa-link"></i> Links
+      </button>
+    </div>
+
+    <!-- CONTENT AREA (home, pinned, links, themes, settings views) -->
+    <div id="content-scroll">
+
+      <!-- HOME VIEW -->
+      <div id="view-home" class="view active">
+        <div id="notes-masonry"></div>
+        <div id="links-row-label" class="section-label">
+          <i class="fa-solid fa-link"></i> Saved Links
+        </div>
+        <div id="links-grid"></div>
+      </div>
+
+      <!-- PINNED VIEW -->
+      <div id="view-pinned" class="view">
+        <div class="view-head">
+          <h2 class="view-title">📌 Pinned Notes</h2>
+          <p class="view-sub">Your most important notes</p>
+        </div>
+        <div id="pinned-grid"></div>
+      </div>
+
+      <!-- LINKS VIEW -->
+      <div id="view-links" class="view">
+        <div class="view-head">
+          <h2 class="view-title">🔗 Link Vault</h2>
+          <p class="view-sub">Save any URL — sites, videos, inspo, tools</p>
+        </div>
+        <div class="link-input-row">
+          <input type="text" id="link-url-input" placeholder="Paste any URL here and press Enter...">
+          <button id="link-add-btn">Save Link</button>
+        </div>
+        <div id="links-full-grid"></div>
+      </div>
+
+      <!-- GOALS VIEW -->
+      <div id="view-goals" class="view">
+        <div class="view-head">
+          <h2 class="view-title">🎯 Goals</h2>
+          <p class="view-sub">Track your progress and achieve your dreams</p>
+          <div class="goals-stats">
+            <span class="stat-item">
+              <span class="stat-number" id="active-goals-count">0</span>
+              <span class="stat-label">Active</span>
+            </span>
+            <span class="stat-item">
+              <span class="stat-number" id="completed-goals-count">0</span>
+              <span class="stat-label">Completed</span>
+            </span>
+          </div>
+        </div>
+        <div class="view-controls">
+          <button class="add-btn" onclick="openGoalModal()">
+            <i class="fa-solid fa-plus"></i> New Goal
+          </button>
+          <div class="goal-filters">
+            <select id="goal-category-filter" onchange="filterGoals()">
+              <option value="all">All Categories</option>
+              <option value="personal">👤 Personal</option>
+              <option value="professional">💼 Professional</option>
+              <option value="health">❤️ Health</option>
+              <option value="learning">📚 Learning</option>
+              <option value="financial">💰 Financial</option>
+              <option value="other">📌 Other</option>
+            </select>
+            <select id="goal-status-filter" onchange="filterGoals()">
+              <option value="all">All Status</option>
+              <option value="active">🟢 Active</option>
+              <option value="completed">✅ Completed</option>
+              <option value="paused">🟡 Paused</option>
+              <option value="cancelled">❌ Cancelled</option>
+            </select>
+          </div>
+        </div>
+        <div id="goals-container" class="goals-container"></div>
+      </div>
+
+      <!-- THEMES VIEW -->
+      <div id="view-themes" class="view">
+        <div class="view-head">
+          <h2 class="view-title">🎨 Themes</h2>
+          <p class="view-sub">Pick your vibe</p>
+        </div>
+        <div id="themes-grid"></div>
+      </div>
+
+      <!-- SETTINGS VIEW -->
+      <div id="view-settings" class="view">
+        <div class="view-head">
+          <h2 class="view-title">⚙️ Settings</h2>
+          <p class="view-sub">Manage your StickyVerse</p>
+        </div>
+        <div class="settings-list">
+          <div class="setting-row">
+            <div><div class="s-label">Export Notes (CSV)</div><div class="s-desc">Download all notes as spreadsheet</div></div>
+            <button class="s-btn" id="export-csv-btn">Export CSV</button>
+          </div>
+          <div class="setting-row">
+            <div><div class="s-label">Total Notes</div><div class="s-desc" id="total-notes-desc">0 notes saved</div></div>
+          </div>
+          <div class="setting-row">
+            <div><div class="s-label">Reset All Data</div><div class="s-desc">Delete all notes and links — cannot be undone</div></div>
+            <button class="s-btn danger" id="reset-btn">Reset</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content-scroll -->
+
+    <!-- BOTTOM ACTION BAR -->
+    <div id="bottom-bar">
+      <button class="bar-btn primary" id="bar-add-btn" title="Add Note">
+        <i class="fa-solid fa-plus"></i>
+      </button>
+      <button class="bar-btn" id="bar-search-btn" title="Search">
+        <i class="fa-solid fa-magnifying-glass"></i>
+      </button>
+      <button class="bar-btn" id="bar-checklist-btn" title="Add Checklist">
+        <i class="fa-solid fa-list-check"></i>
+      </button>
+      <button class="bar-btn" id="bar-link-btn" title="Add Link">
+        <i class="fa-solid fa-link"></i>
+      </button>
+      <button class="bar-btn" id="bar-ai-btn" title="AI Generate">
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+      </button>
+    </div>
+
+  </main>
+
+  <!-- RIGHT PANEL -->
+  <aside id="right-panel">
+
+    <!-- CLOCK -->
+    <div class="rp-widget clock-widget">
+      <div class="clock-arc-wrap">
+        <svg class="clock-svg" viewBox="0 0 120 120">
+          <defs>
+            <linearGradient id="arc-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#A78BFA"/>
+              <stop offset="100%" style="stop-color:#EC4899"/>
+            </linearGradient>
+          </defs>
+          <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="6"/>
+          <circle id="clock-arc" cx="60" cy="60" r="50" fill="none"
+            stroke="url(#arc-grad)" stroke-width="6"
+            stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="80"
+            transform="rotate(-90 60 60)"/>
+          <!-- tick marks -->
+          <g id="clock-ticks"></g>
+        </svg>
+        <div class="clock-center">
+          <div class="clock-time" id="clock-time">10:30</div>
+          <div class="clock-ampm" id="clock-ampm">AM</div>
+        </div>
+      </div>
+      <div class="clock-date" id="clock-date">Sunday, 17 May 2026</div>
+    </div>
+
+    <!-- POMODORO -->
+    <div class="rp-widget pomo-widget">
+      <div class="pomo-header">
+        <span class="pomo-icon">🍅</span>
+        <span class="pomo-title">Pomodoro</span>
+        <button class="pomo-menu">⋮</button>
+      </div>
+      <div class="pomo-time" id="pomo-time">25:00</div>
+      <div class="pomo-mode" id="pomo-mode">work session</div>
+      <button class="pomo-start-btn" id="pomo-start-btn">Start</button>
+      <div class="pomo-actions">
+        <button class="pomo-mini-btn" id="pomo-pause-btn">⏸ Pause</button>
+        <button class="pomo-mini-btn" id="pomo-reset-btn">↺ Reset</button>
+      </div>
+    </div>
+
+    <!-- QUOTE CAROUSEL -->
+    <div class="rp-widget quote-widget">
+      <div class="quote-open">"</div>
+      <div class="quote-body" id="rp-quote-text">Discipline is choosing between what you want now and what you want most.</div>
+      <div class="quote-attr" id="rp-quote-author">— Abraham Lincoln</div>
+      <div class="quote-dots" id="quote-dots"></div>
+    </div>
+
+    <!-- DROP ZONE -->
+    <div class="rp-widget drop-zone" id="drop-zone">
+      <div class="dz-plus">+</div>
+      <div class="dz-label">Drop anything here</div>
+      <div class="dz-sub">Notes, links, images, text or files</div>
+    </div>
+
+  </aside>
+
+</div><!-- /app -->
+
+<!-- ADD NOTE MODAL -->
+<div id="modal-overlay" class="hidden">
+  <div id="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modal-title-text">New Note</h3>
+      <button class="modal-close" id="modal-close-btn">×</button>
+    </div>
+    <div class="modal-type-row">
+      <button class="type-btn active" data-type="note">📝 Note</button>
+      <button class="type-btn" data-type="checklist">✅ Checklist</button>
+      <button class="type-btn" data-type="quote">💬 Quote</button>
+    </div>
+    <div class="modal-colors" id="modal-color-row"></div>
+    <input type="text" id="modal-title" class="modal-input" placeholder="Title (optional)">
+    <textarea id="modal-content" class="modal-textarea" placeholder="Write anything..."></textarea>
+    <div id="modal-checklist-area" class="hidden">
+      <div id="checklist-items"></div>
+      <button id="add-checklist-item-btn" class="add-item-btn">+ Add item</button>
+    </div>
+    <div class="modal-footer">
+      <div class="modal-tag-row">
+        <button class="tag-btn active" data-tag="note">note</button>
+        <button class="tag-btn" data-tag="task">task</button>
+        <button class="tag-btn" data-tag="idea">idea</button>
+        <button class="tag-btn" data-tag="quote">quote</button>
+      </div>
+      <div class="modal-status-row">
+        <label class="modal-status-label">Status</label>
+        <select id="modal-status" class="modal-status-select">
+          <option value="none">— none —</option>
+          <option value="completed">✅ Completed</option>
+          <option value="in-progress">🔄 In Progress</option>
+          <option value="delayed">⏳ Delayed</option>
+          <option value="waiting">🕐 Waiting for Approval</option>
+          <option value="cancelled">❌ Cancelled</option>
+        </select>
+      </div>
+      <button class="modal-submit-btn" id="modal-submit-btn">Add Note</button>
+    </div>
+  </div>
+</div>
+
+<!-- SEARCH OVERLAY -->
+<div id="search-overlay" class="hidden">
+  <div id="search-box">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input type="text" id="search-input" placeholder="Search notes and links...">
+    <button id="search-close-btn">×</button>
+  </div>
+  <div id="search-results"></div>
+</div>
+
+<!-- NOTE CANVAS -->
+<div id="note-canvas" class="nc-hidden">
+  <div class="nc-backdrop" id="nc-backdrop"></div>
+  <div class="nc-panel" id="nc-panel">
+    <div class="nc-topbar">
+      <button class="nc-back-btn" id="nc-back-btn">
+        <i class="fa-solid fa-arrow-left"></i> Back
+      </button>
+      <div class="nc-topbar-center">
+        <span class="nc-tag-chip" id="nc-tag-chip">note</span>
+      </div>
+      <div class="nc-topbar-right">
+        <span class="nc-saved-dot" id="nc-saved-dot">● Saved</span>
+        <button class="nc-close-x" id="nc-close-x">✕</button>
+      </div>
+    </div>
+    <div class="nc-writing">
+      <input type="text" id="nc-title-inp" class="nc-title-inp" placeholder="Title...">
+      <div class="nc-rule"></div>
+      <!-- Regular / Note -->
+      <textarea id="nc-text-area" class="nc-text-area" placeholder="Start writing… let your thoughts flow ✨"></textarea>
+      <!-- Checklist -->
+      <div id="nc-cl-wrap" class="nc-cl-wrap nc-hidden">
+        <div id="nc-cl-items"></div>
+        <button id="nc-cl-add" class="nc-cl-add-btn">+ Add item</button>
+      </div>
+      <!-- Quote -->
+      <div id="nc-quote-wrap" class="nc-quote-wrap nc-hidden">
+        <div class="nc-big-qq">"</div>
+        <textarea id="nc-quote-body" class="nc-quote-body" placeholder="Enter quote..."></textarea>
+        <div class="nc-quote-dash">—</div>
+        <input type="text" id="nc-quote-auth" class="nc-quote-auth" placeholder="Author name...">
+      </div>
+    </div>
+    <div class="nc-status-row">
+      <span class="nc-status-label">Status</span>
+      <select id="nc-status-select" class="nc-status-select">
+        <option value="none">— none —</option>
+        <option value="completed">✅ Completed</option>
+        <option value="in-progress">🔄 In Progress</option>
+        <option value="delayed">⏳ Delayed</option>
+        <option value="waiting">🕐 Waiting for Approval</option>
+        <option value="cancelled">❌ Cancelled</option>
+      </select>
+    </div>
+    <div class="nc-footer">
+      <span class="nc-wc" id="nc-wc">0 words</span>
+      <span class="nc-created-lbl" id="nc-created-lbl"></span>
+      <button class="nc-pin-btn" id="nc-pin-canvas-btn" title="Pin note">📌</button>
+    </div>
+  </div>
+</div>
+
+<script src="newtab.js"></script>
+</body>
+</html>
