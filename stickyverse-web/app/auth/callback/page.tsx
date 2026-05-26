@@ -11,36 +11,38 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      // Get the session from the URL hash
-      const { data: { session }, error } = await supabase.auth.getSession()
+      const params = new URLSearchParams(window.location.search)
+      const code = params.get('code')
+      const error = params.get('error')
+      const errorDescription = params.get('error_description')
 
       if (error) {
-        console.error('Auth error:', error)
-        router.push('/auth?error=auth_failed')
+        console.error('OAuth error:', error, errorDescription)
+        router.push(`/auth?error=${encodeURIComponent(errorDescription || error)}`)
         return
       }
 
-      if (session) {
-        // Check if this is an extension connection request
-        const params = new URLSearchParams(window.location.search)
-        const connectExtension = params.get('connect_extension')
-        
-        if (connectExtension === 'true') {
-          // Generate a token for the extension
-          const token = btoa(JSON.stringify({
-            access_token: session.access_token,
-            refresh_token: session.refresh_token,
-            expires_at: session.expires_at,
-            user: session.user
-          }))
-          
-          // Redirect to extension with token
-          const extensionUrl = `chrome-extension://STICKYVERSE_EXTENSION_ID/auth-callback.html?token=${encodeURIComponent(token)}`
-          window.location.href = extensionUrl
-        } else {
-          // Normal login, go to dashboard
-          router.push('/dashboard')
+      if (code) {
+        // Exchange the OAuth code for a session — this writes to localStorage
+        const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+
+        if (exchangeError) {
+          console.error('Code exchange error:', exchangeError)
+          router.push('/auth?error=auth_failed')
+          return
         }
+
+        if (data.session) {
+          // Session is now in localStorage — extension-bridge.js will pick it up
+          router.push('/dashboard')
+          return
+        }
+      }
+
+      // Fallback: check if session already exists (e.g. implicit flow)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        router.push('/dashboard')
       } else {
         router.push('/auth')
       }

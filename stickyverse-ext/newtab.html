@@ -6,14 +6,14 @@
   <title>StickyVerse ✨</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Caveat:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Syne:wght@600;700;800&family=Caveat:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="newtab.css">
 </head>
 <body>
 <div id="app">
 
-  <!-- BACKGROUND -->
+  <!-- ░░ AMBIENT BACKGROUND ░░ -->
   <div id="bg">
     <div class="blob b1"></div>
     <div class="blob b2"></div>
@@ -22,43 +22,92 @@
   </div>
   <div id="grid-overlay"></div>
 
-  <!-- SIDEBAR -->
+  <!-- ░░ LEFT SIDEBAR ░░ -->
   <aside id="sidebar">
+
+    <!-- Logo -->
     <div class="sb-logo">
-      <span class="logo-sticky">Sticky</span><span class="logo-verse">Verse</span>
-      <span class="logo-star">✨</span>
-      <div class="logo-sub">Your creative workspace</div>
+      <div class="logo-mark">
+        <span class="logo-icon">✦</span>
+      </div>
+      <div class="logo-text">
+        <span class="logo-sticky">Sticky</span><span class="logo-verse">Verse</span>
+      </div>
+      <div class="logo-sub">Your creative OS</div>
     </div>
 
+    <!-- Navigation -->
     <nav class="sb-nav">
+      <div class="nav-section-label">Workspace</div>
       <button class="nav-item active" data-view="home">
-        <i class="fa-solid fa-house"></i><span>Home</span>
+        <span class="nav-icon"><i class="fa-solid fa-house-chimney"></i></span>
+        <span class="nav-label">Home</span>
       </button>
       <button class="nav-item" data-view="pinned">
-        <i class="fa-solid fa-thumbtack"></i><span>Pinned</span>
+        <span class="nav-icon"><i class="fa-solid fa-thumbtack"></i></span>
+        <span class="nav-label">Pinned</span>
+      </button>
+      <button class="nav-item" data-view="favorites">
+        <span class="nav-icon"><i class="fa-solid fa-star"></i></span>
+        <span class="nav-label">Favorites</span>
+        <span class="nav-badge" id="fav-badge">0</span>
       </button>
       <button class="nav-item" data-view="links">
-        <i class="fa-solid fa-link"></i><span>Link Vault</span>
+        <span class="nav-icon"><i class="fa-solid fa-link"></i></span>
+        <span class="nav-label">Link Vault</span>
         <span class="nav-badge" id="link-badge">0</span>
       </button>
       <button class="nav-item" data-view="goals">
-        <i class="fa-solid fa-bullseye"></i><span>Goals</span>
+        <span class="nav-icon"><i class="fa-solid fa-bullseye"></i></span>
+        <span class="nav-label">Goals</span>
         <span class="nav-badge" id="goal-badge">0</span>
       </button>
+
+      <div class="nav-section-label">Discover</div>
+      <button class="nav-item" data-view="reading">
+        <span class="nav-icon"><i class="fa-solid fa-book-open"></i></span>
+        <span class="nav-label">Reading List</span>
+        <span class="nav-badge" id="reading-badge">0</span>
+      </button>
+      <button class="nav-item" data-view="vision">
+        <span class="nav-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+        <span class="nav-label">Vision Board</span>
+      </button>
+      <button class="nav-item" data-view="productivity">
+        <span class="nav-icon"><i class="fa-solid fa-chart-line"></i></span>
+        <span class="nav-label">Productivity</span>
+      </button>
+      <button class="nav-item" data-view="notifications">
+        <span class="nav-icon"><i class="fa-solid fa-bell"></i></span>
+        <span class="nav-label">Notifications</span>
+        <span class="nav-badge" id="notif-badge" style="display:none">0</span>
+      </button>
+      <button class="nav-item" data-view="archive">
+        <span class="nav-icon"><i class="fa-solid fa-box-archive"></i></span>
+        <span class="nav-label">Archive</span>
+      </button>
+
+      <div class="nav-section-label">Customize</div>
       <button class="nav-item" data-view="themes">
-        <i class="fa-solid fa-palette"></i><span>Themes</span>
+        <span class="nav-icon"><i class="fa-solid fa-palette"></i></span>
+        <span class="nav-label">Themes</span>
       </button>
       <button class="nav-item" data-view="widgets">
-        <i class="fa-solid fa-grip"></i><span>Widgets</span>
+        <span class="nav-icon"><i class="fa-solid fa-grip"></i></span>
+        <span class="nav-label">Widgets</span>
       </button>
       <button class="nav-item" data-view="settings">
-        <i class="fa-solid fa-gear"></i><span>Settings</span>
+        <span class="nav-icon"><i class="fa-solid fa-gear"></i></span>
+        <span class="nav-label">Settings</span>
       </button>
     </nav>
 
+    <!-- Streak -->
     <div class="sb-streak" id="streak-widget">
-      <div class="streak-header">Daily Streak <span class="streak-fire">🔥</span></div>
-      <div class="streak-count"><span id="streak-num">0</span> days in a row</div>
+      <div class="streak-header">
+        <span>Streak</span>
+        <span class="streak-fire">🔥 <span id="streak-num">0</span>d</span>
+      </div>
       <div class="streak-days">
         <div class="day-label">M</div><div class="day-label">T</div><div class="day-label">W</div>
         <div class="day-label">T</div><div class="day-label">F</div><div class="day-label">S</div><div class="day-label">S</div>
@@ -66,19 +115,22 @@
       <div class="streak-dots" id="streak-dots"></div>
     </div>
 
+    <!-- Sidebar quote -->
     <div class="sb-quote-card">
       <div class="sb-quote-mark">"</div>
       <div class="sb-quote-text" id="sb-quote-text">Small progress every day adds up to big results.</div>
       <div class="sb-quote-author" id="sb-quote-author">— Unknown</div>
     </div>
 
+    <!-- X follow -->
     <a href="https://x.com/zero2tenx" target="_blank" class="follow-x-btn" id="follow-x-btn">
       <svg class="x-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-      <span>Follow <strong>@zero2tenx</strong></span>
+      <span>@zero2tenx</span>
     </a>
+
   </aside>
 
-  <!-- MAIN CONTENT -->
+  <!-- ░░ MAIN CONTENT ░░ -->
   <main id="main">
 
     <!-- TOP BAR -->
@@ -90,42 +142,31 @@
         <button id="cmd-add-btn"><i class="fa-solid fa-plus"></i></button>
       </div>
       <div class="topbar-right">
-        <button id="save-tab-topbtn" class="top-action-btn save-tab">
-          <i class="fa-solid fa-link"></i> Save Current Tab
+        <button id="save-tab-topbtn" class="top-action-btn save-tab" title="Save Current Tab">
+          <i class="fa-solid fa-bookmark"></i>
+          <span>Save Tab</span>
         </button>
         <button class="top-icon-btn" id="theme-toggle-btn" title="Toggle Theme">
-          <i class="fa-solid fa-sun"></i>
+          <i class="fa-solid fa-circle-half-stroke"></i>
         </button>
-        <div class="avatar">DK</div>
+        <div class="avatar" id="topbar-avatar">?</div>
       </div>
     </div>
 
     <!-- FILTER TABS -->
     <div id="filter-bar">
-      <button class="filter-tab active" data-filter="all">
-        <i class="fa-solid fa-border-all"></i> All
-      </button>
-      <button class="filter-tab" data-filter="note">
-        <i class="fa-regular fa-sticky-note"></i> Notes
-      </button>
-      <button class="filter-tab" data-filter="task">
-        <i class="fa-solid fa-check-circle"></i> Tasks
-      </button>
-      <button class="filter-tab" data-filter="idea">
-        <i class="fa-regular fa-lightbulb"></i> Ideas
-      </button>
-      <button class="filter-tab" data-filter="quote">
-        <i class="fa-solid fa-quote-left"></i> Quotes
-      </button>
-      <button class="filter-tab" data-filter="link">
-        <i class="fa-solid fa-link"></i> Links
-      </button>
+      <button class="filter-tab active" data-filter="all">All</button>
+      <button class="filter-tab" data-filter="note">Notes</button>
+      <button class="filter-tab" data-filter="task">Tasks</button>
+      <button class="filter-tab" data-filter="idea">Ideas</button>
+      <button class="filter-tab" data-filter="quote">Quotes</button>
+      <button class="filter-tab" data-filter="link">Links</button>
     </div>
 
-    <!-- CONTENT AREA (home, pinned, links, themes, settings views) -->
+    <!-- VIEWS -->
     <div id="content-scroll">
 
-      <!-- HOME VIEW -->
+      <!-- HOME -->
       <div id="view-home" class="view active">
         <div id="notes-masonry"></div>
         <div id="links-row-label" class="section-label">
@@ -134,112 +175,342 @@
         <div id="links-grid"></div>
       </div>
 
-      <!-- PINNED VIEW -->
+      <!-- PINNED -->
       <div id="view-pinned" class="view">
         <div class="view-head">
-          <h2 class="view-title">📌 Pinned Notes</h2>
-          <p class="view-sub">Your most important notes</p>
+          <h2 class="view-title">Pinned Notes</h2>
+          <p class="view-sub">Your most important notes, always at the top</p>
         </div>
         <div id="pinned-grid"></div>
       </div>
 
-      <!-- LINKS VIEW -->
+      <!-- LINKS -->
       <div id="view-links" class="view">
         <div class="view-head">
-          <h2 class="view-title">🔗 Link Vault</h2>
+          <h2 class="view-title">Link Vault</h2>
           <p class="view-sub">Save any URL — sites, videos, inspo, tools</p>
         </div>
-        <div class="link-input-row">
-          <input type="text" id="link-url-input" placeholder="Paste any URL here and press Enter...">
-          <button id="link-add-btn">Save Link</button>
+        <div class="glass-input-row">
+          <i class="fa-solid fa-link input-row-icon"></i>
+          <input type="text" id="link-url-input" placeholder="Paste any URL and press Enter…">
+          <button id="link-add-btn" class="input-row-btn">Save</button>
         </div>
         <div id="links-full-grid"></div>
       </div>
 
-      <!-- GOALS VIEW -->
+      <!-- GOALS -->
       <div id="view-goals" class="view">
         <div class="view-head">
-          <h2 class="view-title">🎯 Goals</h2>
+          <h2 class="view-title">Goals</h2>
           <p class="view-sub">Track your progress and achieve your dreams</p>
           <div class="goals-stats">
-            <span class="stat-item">
+            <div class="stat-pill">
               <span class="stat-number" id="active-goals-count">0</span>
               <span class="stat-label">Active</span>
-            </span>
-            <span class="stat-item">
+            </div>
+            <div class="stat-pill">
               <span class="stat-number" id="completed-goals-count">0</span>
-              <span class="stat-label">Completed</span>
-            </span>
+              <span class="stat-label">Done</span>
+            </div>
           </div>
         </div>
         <div class="view-controls">
-          <button class="add-btn" onclick="openGoalModal()">
+          <button class="add-btn" id="add-goal-btn">
             <i class="fa-solid fa-plus"></i> New Goal
           </button>
           <div class="goal-filters">
-            <select id="goal-category-filter" onchange="filterGoals()">
+            <select id="goal-category-filter" class="glass-select">
               <option value="all">All Categories</option>
-              <option value="personal">👤 Personal</option>
-              <option value="professional">💼 Professional</option>
-              <option value="health">❤️ Health</option>
-              <option value="learning">📚 Learning</option>
-              <option value="financial">💰 Financial</option>
-              <option value="other">📌 Other</option>
+              <option value="personal">Personal</option>
+              <option value="professional">Professional</option>
+              <option value="health">Health</option>
+              <option value="learning">Learning</option>
+              <option value="financial">Financial</option>
+              <option value="other">Other</option>
             </select>
-            <select id="goal-status-filter" onchange="filterGoals()">
+            <select id="goal-status-filter" class="glass-select">
               <option value="all">All Status</option>
-              <option value="active">🟢 Active</option>
-              <option value="completed">✅ Completed</option>
-              <option value="paused">🟡 Paused</option>
-              <option value="cancelled">❌ Cancelled</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+              <option value="paused">Paused</option>
+              <option value="cancelled">Cancelled</option>
             </select>
           </div>
         </div>
         <div id="goals-container" class="goals-container"></div>
       </div>
 
-      <!-- THEMES VIEW -->
+      <!-- FAVORITES -->
+      <div id="view-favorites" class="view">
+        <div class="view-head">
+          <h2 class="view-title">Favorites</h2>
+          <p class="view-sub">Notes you've starred</p>
+        </div>
+        <div id="favorites-grid"></div>
+      </div>
+
+      <!-- ARCHIVE -->
+      <div id="view-archive" class="view">
+        <div class="view-head">
+          <h2 class="view-title">Archive</h2>
+          <p class="view-sub">Out of sight, not deleted</p>
+        </div>
+        <div id="archive-grid"></div>
+      </div>
+
+      <!-- READING LIST -->
+      <div id="view-reading" class="view">
+        <div class="view-head">
+          <h2 class="view-title">Reading List</h2>
+          <p class="view-sub">Articles and pages saved for later</p>
+        </div>
+        <div class="glass-input-row">
+          <i class="fa-solid fa-globe input-row-icon"></i>
+          <input type="text" id="reading-url-input" placeholder="Paste article URL to save for later…">
+          <button id="reading-add-btn" class="input-row-btn">Save</button>
+        </div>
+        <div id="reading-grid"></div>
+      </div>
+
+      <!-- PRODUCTIVITY -->
+      <div id="view-productivity" class="view">
+        <div class="view-head">
+          <h2 class="view-title">Productivity</h2>
+          <p class="view-sub">Your daily performance snapshot</p>
+        </div>
+        <div class="prod-stats-grid" id="prod-stats-grid"></div>
+        <div class="prod-section-title">Daily Summary</div>
+        <div class="prod-summary" id="prod-summary"></div>
+        <div class="prod-section-title">Activity Timeline</div>
+        <div class="prod-timeline" id="prod-timeline"></div>
+      </div>
+
+      <!-- NOTIFICATIONS -->
+      <div id="view-notifications" class="view">
+        <div class="view-head">
+          <h2 class="view-title">Notifications</h2>
+          <p class="view-sub">Alerts, reminders, and updates</p>
+        </div>
+        <div class="notif-actions">
+          <button class="glass-btn-sm" id="clear-notifs-btn">Clear All</button>
+        </div>
+        <div id="notif-list"></div>
+      </div>
+
+      <!-- VISION BOARD -->
+      <div id="view-vision" class="view">
+        <div class="view-head">
+          <h2 class="view-title">Vision Board</h2>
+          <p class="view-sub">Visualize your best life — organized by what matters most</p>
+          <button id="vision-add-open-btn" class="view-head-btn"><i class="fa-solid fa-plus"></i> Add Vision</button>
+        </div>
+
+        <!-- Daily affirmation strip -->
+        <div class="vision-affirmation-bar">
+          <span class="vision-affirmation-label">Today's Affirmation</span>
+          <span id="vision-daily-affirmation" class="vision-affirmation-text"></span>
+          <button id="vision-affirmation-refresh" class="vision-affirmation-refresh" title="New affirmation"><i class="fa-solid fa-rotate-right"></i></button>
+        </div>
+
+        <!-- Template picker -->
+        <div class="vision-template-row">
+          <button id="vision-template-toggle" class="vision-tpl-toggle">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Start from a template
+            <i class="fa-solid fa-chevron-down vision-tpl-chevron"></i>
+          </button>
+        </div>
+        <div id="vision-template-section" class="vision-template-section hidden">
+          <div id="vision-template-list" class="vision-template-list">
+            <div class="vt-card" data-tpl-id="best-year">
+              <div class="vt-icon">🏆</div>
+              <div class="vt-label">Best Year Yet</div>
+              <div class="vt-desc">All life areas · 6 goals</div>
+            </div>
+            <div class="vt-card" data-tpl-id="financial-freedom">
+              <div class="vt-icon">💰</div>
+              <div class="vt-label">Financial Freedom</div>
+              <div class="vt-desc">Money & career · 6 goals</div>
+            </div>
+            <div class="vt-card" data-tpl-id="health-body">
+              <div class="vt-icon">💪</div>
+              <div class="vt-label">Peak Health</div>
+              <div class="vt-desc">Body & mind · 6 goals</div>
+            </div>
+            <div class="vt-card" data-tpl-id="dream-career">
+              <div class="vt-icon">🚀</div>
+              <div class="vt-label">Dream Career</div>
+              <div class="vt-desc">Career & growth · 6 goals</div>
+            </div>
+            <div class="vt-card" data-tpl-id="adventure-travel">
+              <div class="vt-icon">🌍</div>
+              <div class="vt-label">Adventure & Travel</div>
+              <div class="vt-desc">Travel & creative · 6 goals</div>
+            </div>
+            <div class="vt-card" data-tpl-id="creative-growth">
+              <div class="vt-icon">🎨</div>
+              <div class="vt-label">Creative Life</div>
+              <div class="vt-desc">Creative & growth · 6 goals</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Life pillar tabs -->
+        <div class="vision-pillar-tabs" id="vision-pillar-tabs">
+          <button class="vision-pillar-tab active" data-pillar="all">✦ All</button>
+          <button class="vision-pillar-tab" data-pillar="mind">🧠 Mind</button>
+          <button class="vision-pillar-tab" data-pillar="body">💪 Body</button>
+          <button class="vision-pillar-tab" data-pillar="money">💰 Money</button>
+          <button class="vision-pillar-tab" data-pillar="career">🚀 Career</button>
+          <button class="vision-pillar-tab" data-pillar="love">❤️ Love</button>
+          <button class="vision-pillar-tab" data-pillar="travel">🌍 Travel</button>
+          <button class="vision-pillar-tab" data-pillar="creative">🎨 Creative</button>
+          <button class="vision-pillar-tab" data-pillar="growth">🌱 Growth</button>
+        </div>
+
+        <div id="vision-grid"></div>
+
+        <!-- Add vision modal panel -->
+        <div id="vision-add-panel" class="vision-add-panel hidden">
+          <div class="vision-add-inner">
+            <div class="vision-add-header">
+              <h3>Add Vision Item</h3>
+              <button id="vision-panel-close" class="vision-panel-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="vision-form-grid">
+              <!-- Image upload -->
+              <div class="vision-form-img-col">
+                <label class="vision-img-upload-area" id="vision-img-upload-area">
+                  <input type="file" id="vision-img-input" accept="image/*" style="display:none">
+                  <div class="vision-img-placeholder" id="vision-img-placeholder">
+                    <i class="fa-solid fa-image"></i>
+                    <span>Upload image</span>
+                    <span class="vision-img-sub">JPG, PNG, GIF</span>
+                  </div>
+                  <img id="vision-img-preview" class="vision-img-preview hidden" alt="preview">
+                  <button type="button" id="vision-img-clear" class="vision-img-clear hidden"><i class="fa-solid fa-xmark"></i></button>
+                </label>
+              </div>
+              <!-- Fields -->
+              <div class="vision-form-fields-col">
+                <div class="vision-form-group">
+                  <label>Dream or Goal *</label>
+                  <input type="text" id="vision-text-input" placeholder="e.g. Run a marathon, Buy a home…">
+                </div>
+                <div class="vision-form-row">
+                  <div class="vision-form-group">
+                    <label>Emoji</label>
+                    <input type="text" id="vision-emoji-input" placeholder="🌟" class="vision-emoji-inp">
+                  </div>
+                  <div class="vision-form-group">
+                    <label>Life Area</label>
+                    <select id="vision-pillar-select">
+                      <option value="mind">🧠 Mind</option>
+                      <option value="body">💪 Body</option>
+                      <option value="money">💰 Money</option>
+                      <option value="career">🚀 Career</option>
+                      <option value="love">❤️ Love</option>
+                      <option value="travel">🌍 Travel</option>
+                      <option value="creative">🎨 Creative</option>
+                      <option value="growth">🌱 Growth</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="vision-form-group">
+                  <label>Why does this matter to you?</label>
+                  <textarea id="vision-why-input" placeholder="Because…" rows="2"></textarea>
+                </div>
+                <div class="vision-form-group">
+                  <label>Target Date <span class="vision-form-optional">(optional)</span></label>
+                  <input type="date" id="vision-date-input">
+                </div>
+              </div>
+            </div>
+            <button id="vision-add-btn" class="vision-submit-btn"><i class="fa-solid fa-plus"></i> Add to Vision Board</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- WIDGETS -->
+      <div id="view-widgets" class="view">
+        <div class="view-head">
+          <h2 class="view-title">Widgets</h2>
+          <p class="view-sub">Your workspace tools — timer, quotes and more</p>
+        </div>
+        <div class="widgets-hint">All widgets are live in the right panel →</div>
+      </div>
+
+      <!-- THEMES -->
       <div id="view-themes" class="view">
         <div class="view-head">
-          <h2 class="view-title">🎨 Themes</h2>
+          <h2 class="view-title">Themes</h2>
           <p class="view-sub">Pick your vibe</p>
         </div>
         <div id="themes-grid"></div>
       </div>
 
-      <!-- SETTINGS VIEW -->
+      <!-- SETTINGS -->
       <div id="view-settings" class="view">
         <div class="view-head">
-          <h2 class="view-title">⚙️ Settings</h2>
-          <p class="view-sub">Manage your StickyVerse</p>
+          <h2 class="view-title">Settings</h2>
+          <p class="view-sub">Manage your StickyVerse workspace</p>
         </div>
         <div class="settings-list">
           <div class="setting-row">
-            <div><div class="s-label">Export Notes (CSV)</div><div class="s-desc">Download all notes as spreadsheet</div></div>
-            <button class="s-btn" id="export-csv-btn">Export CSV</button>
+            <div class="setting-info">
+              <div class="s-label">Export Notes</div>
+              <div class="s-desc">Download all notes as a CSV spreadsheet</div>
+            </div>
+            <button class="glass-btn-sm" id="export-csv-btn">Export CSV</button>
           </div>
           <div class="setting-row">
-            <div><div class="s-label">Total Notes</div><div class="s-desc" id="total-notes-desc">0 notes saved</div></div>
+            <div class="setting-info">
+              <div class="s-label">Workspace Stats</div>
+              <div class="s-desc" id="total-notes-desc">0 notes saved</div>
+            </div>
           </div>
           <div class="setting-row">
-            <div><div class="s-label">Reset All Data</div><div class="s-desc">Delete all notes and links — cannot be undone</div></div>
-            <button class="s-btn danger" id="reset-btn">Reset</button>
+            <div class="setting-info">
+              <div class="s-label">Backup Data</div>
+              <div class="s-desc">Download a full JSON backup of your workspace</div>
+            </div>
+            <button class="glass-btn-sm" id="backup-btn">Backup</button>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="s-label">Restore Backup</div>
+              <div class="s-desc">Restore from a previously exported JSON file</div>
+            </div>
+            <label class="glass-btn-sm" style="cursor:pointer">Restore <input type="file" id="restore-input" accept=".json" style="display:none"></label>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="s-label">Wallpaper</div>
+              <div class="s-desc">Choose your workspace background</div>
+            </div>
+            <div class="wallpaper-picker" id="wallpaper-picker"></div>
+          </div>
+          <div class="setting-row danger-row">
+            <div class="setting-info">
+              <div class="s-label">Reset All Data</div>
+              <div class="s-desc">Delete all notes and links — cannot be undone</div>
+            </div>
+            <button class="glass-btn-sm danger" id="reset-btn">Reset</button>
           </div>
         </div>
       </div>
 
     </div><!-- /content-scroll -->
 
-    <!-- BOTTOM ACTION BAR -->
+    <!-- BOTTOM FLOATING DOCK -->
     <div id="bottom-bar">
-      <button class="bar-btn primary" id="bar-add-btn" title="Add Note">
-        <i class="fa-solid fa-plus"></i>
-      </button>
       <button class="bar-btn" id="bar-search-btn" title="Search">
         <i class="fa-solid fa-magnifying-glass"></i>
       </button>
       <button class="bar-btn" id="bar-checklist-btn" title="Add Checklist">
         <i class="fa-solid fa-list-check"></i>
+      </button>
+      <button class="bar-btn primary" id="bar-add-btn" title="Add Note">
+        <i class="fa-solid fa-plus"></i>
       </button>
       <button class="bar-btn" id="bar-link-btn" title="Add Link">
         <i class="fa-solid fa-link"></i>
@@ -251,7 +522,7 @@
 
   </main>
 
-  <!-- RIGHT PANEL -->
+  <!-- ░░ RIGHT PANEL ░░ -->
   <aside id="right-panel">
 
     <!-- CLOCK -->
@@ -264,12 +535,11 @@
               <stop offset="100%" style="stop-color:#EC4899"/>
             </linearGradient>
           </defs>
-          <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="6"/>
+          <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="5"/>
           <circle id="clock-arc" cx="60" cy="60" r="50" fill="none"
-            stroke="url(#arc-grad)" stroke-width="6"
+            stroke="url(#arc-grad)" stroke-width="5"
             stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="80"
             transform="rotate(-90 60 60)"/>
-          <!-- tick marks -->
           <g id="clock-ticks"></g>
         </svg>
         <div class="clock-center">
@@ -284,19 +554,19 @@
     <div class="rp-widget pomo-widget">
       <div class="pomo-header">
         <span class="pomo-icon">🍅</span>
-        <span class="pomo-title">Pomodoro</span>
+        <span class="pomo-title">Focus Timer</span>
         <button class="pomo-menu">⋮</button>
       </div>
       <div class="pomo-time" id="pomo-time">25:00</div>
       <div class="pomo-mode" id="pomo-mode">work session</div>
-      <button class="pomo-start-btn" id="pomo-start-btn">Start</button>
+      <button class="pomo-start-btn" id="pomo-start-btn">Start Session</button>
       <div class="pomo-actions">
-        <button class="pomo-mini-btn" id="pomo-pause-btn">⏸ Pause</button>
-        <button class="pomo-mini-btn" id="pomo-reset-btn">↺ Reset</button>
+        <button class="pomo-mini-btn" id="pomo-pause-btn"><i class="fa-solid fa-pause"></i></button>
+        <button class="pomo-mini-btn" id="pomo-reset-btn"><i class="fa-solid fa-rotate-left"></i></button>
       </div>
     </div>
 
-    <!-- QUOTE CAROUSEL -->
+    <!-- QUOTE -->
     <div class="rp-widget quote-widget">
       <div class="quote-open">"</div>
       <div class="quote-body" id="rp-quote-text">Discipline is choosing between what you want now and what you want most.</div>
@@ -306,30 +576,32 @@
 
     <!-- DROP ZONE -->
     <div class="rp-widget drop-zone" id="drop-zone">
-      <div class="dz-plus">+</div>
+      <div class="dz-plus">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+      </div>
       <div class="dz-label">Drop anything here</div>
-      <div class="dz-sub">Notes, links, images, text or files</div>
+      <div class="dz-sub">Text, URLs, or files</div>
     </div>
 
   </aside>
 
 </div><!-- /app -->
 
-<!-- ADD NOTE MODAL -->
+<!-- ░░ ADD NOTE MODAL ░░ -->
 <div id="modal-overlay" class="hidden">
   <div id="modal">
     <div class="modal-header">
       <h3 class="modal-title" id="modal-title-text">New Note</h3>
-      <button class="modal-close" id="modal-close-btn">×</button>
+      <button class="modal-close" id="modal-close-btn"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="modal-type-row">
-      <button class="type-btn active" data-type="note">📝 Note</button>
-      <button class="type-btn" data-type="checklist">✅ Checklist</button>
-      <button class="type-btn" data-type="quote">💬 Quote</button>
+      <button class="type-btn active" data-type="note"><i class="fa-regular fa-note-sticky"></i> Note</button>
+      <button class="type-btn" data-type="checklist"><i class="fa-solid fa-list-check"></i> Checklist</button>
+      <button class="type-btn" data-type="quote"><i class="fa-solid fa-quote-left"></i> Quote</button>
     </div>
     <div class="modal-colors" id="modal-color-row"></div>
     <input type="text" id="modal-title" class="modal-input" placeholder="Title (optional)">
-    <textarea id="modal-content" class="modal-textarea" placeholder="Write anything..."></textarea>
+    <textarea id="modal-content" class="modal-textarea" placeholder="Write anything…"></textarea>
     <div id="modal-checklist-area" class="hidden">
       <div id="checklist-items"></div>
       <button id="add-checklist-item-btn" class="add-item-btn">+ Add item</button>
@@ -341,33 +613,43 @@
         <button class="tag-btn" data-tag="idea">idea</button>
         <button class="tag-btn" data-tag="quote">quote</button>
       </div>
+      <div class="modal-priority-row">
+        <label class="modal-status-label">Priority</label>
+        <div class="priority-btns" id="modal-priority-btns">
+          <button class="priority-btn active" data-priority="none">none</button>
+          <button class="priority-btn low" data-priority="low">Low</button>
+          <button class="priority-btn medium" data-priority="medium">Medium</button>
+          <button class="priority-btn high" data-priority="high">High</button>
+          <button class="priority-btn urgent" data-priority="urgent">Urgent</button>
+        </div>
+      </div>
       <div class="modal-status-row">
         <label class="modal-status-label">Status</label>
         <select id="modal-status" class="modal-status-select">
           <option value="none">— none —</option>
-          <option value="completed">✅ Completed</option>
-          <option value="in-progress">🔄 In Progress</option>
-          <option value="delayed">⏳ Delayed</option>
-          <option value="waiting">🕐 Waiting for Approval</option>
-          <option value="cancelled">❌ Cancelled</option>
+          <option value="completed">Completed</option>
+          <option value="in-progress">In Progress</option>
+          <option value="delayed">Delayed</option>
+          <option value="waiting">Waiting</option>
+          <option value="cancelled">Cancelled</option>
         </select>
       </div>
-      <button class="modal-submit-btn" id="modal-submit-btn">Add Note</button>
+      <button class="modal-submit-btn" id="modal-submit-btn">Create Note</button>
     </div>
   </div>
 </div>
 
-<!-- SEARCH OVERLAY -->
+<!-- ░░ SEARCH OVERLAY ░░ -->
 <div id="search-overlay" class="hidden">
   <div id="search-box">
     <i class="fa-solid fa-magnifying-glass"></i>
-    <input type="text" id="search-input" placeholder="Search notes and links...">
-    <button id="search-close-btn">×</button>
+    <input type="text" id="search-input" placeholder="Search notes and links…">
+    <button id="search-close-btn"><i class="fa-solid fa-xmark"></i></button>
   </div>
   <div id="search-results"></div>
 </div>
 
-<!-- NOTE CANVAS -->
+<!-- ░░ NOTE CANVAS ░░ -->
 <div id="note-canvas" class="nc-hidden">
   <div class="nc-backdrop" id="nc-backdrop"></div>
   <div class="nc-panel" id="nc-panel">
@@ -380,42 +662,39 @@
       </div>
       <div class="nc-topbar-right">
         <span class="nc-saved-dot" id="nc-saved-dot">● Saved</span>
-        <button class="nc-close-x" id="nc-close-x">✕</button>
+        <button class="nc-close-x" id="nc-close-x"><i class="fa-solid fa-xmark"></i></button>
       </div>
     </div>
     <div class="nc-writing">
-      <input type="text" id="nc-title-inp" class="nc-title-inp" placeholder="Title...">
+      <input type="text" id="nc-title-inp" class="nc-title-inp" placeholder="Title…">
       <div class="nc-rule"></div>
-      <!-- Regular / Note -->
       <textarea id="nc-text-area" class="nc-text-area" placeholder="Start writing… let your thoughts flow ✨"></textarea>
-      <!-- Checklist -->
       <div id="nc-cl-wrap" class="nc-cl-wrap nc-hidden">
         <div id="nc-cl-items"></div>
         <button id="nc-cl-add" class="nc-cl-add-btn">+ Add item</button>
       </div>
-      <!-- Quote -->
       <div id="nc-quote-wrap" class="nc-quote-wrap nc-hidden">
         <div class="nc-big-qq">"</div>
-        <textarea id="nc-quote-body" class="nc-quote-body" placeholder="Enter quote..."></textarea>
+        <textarea id="nc-quote-body" class="nc-quote-body" placeholder="Enter quote…"></textarea>
         <div class="nc-quote-dash">—</div>
-        <input type="text" id="nc-quote-auth" class="nc-quote-auth" placeholder="Author name...">
+        <input type="text" id="nc-quote-auth" class="nc-quote-auth" placeholder="Author name…">
       </div>
     </div>
     <div class="nc-status-row">
       <span class="nc-status-label">Status</span>
       <select id="nc-status-select" class="nc-status-select">
         <option value="none">— none —</option>
-        <option value="completed">✅ Completed</option>
-        <option value="in-progress">🔄 In Progress</option>
-        <option value="delayed">⏳ Delayed</option>
-        <option value="waiting">🕐 Waiting for Approval</option>
-        <option value="cancelled">❌ Cancelled</option>
+        <option value="completed">Completed</option>
+        <option value="in-progress">In Progress</option>
+        <option value="delayed">Delayed</option>
+        <option value="waiting">Waiting</option>
+        <option value="cancelled">Cancelled</option>
       </select>
     </div>
     <div class="nc-footer">
       <span class="nc-wc" id="nc-wc">0 words</span>
       <span class="nc-created-lbl" id="nc-created-lbl"></span>
-      <button class="nc-pin-btn" id="nc-pin-canvas-btn" title="Pin note">📌</button>
+      <button class="nc-pin-btn" id="nc-pin-canvas-btn" title="Pin note"><i class="fa-solid fa-thumbtack"></i></button>
     </div>
   </div>
 </div>

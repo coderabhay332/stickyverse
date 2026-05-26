@@ -1,23 +1,63 @@
 /* ══════════════════════════════════════
    BACKGROUND SERVICE WORKER
+   Approach 2: Central session store
 ══════════════════════════════════════ */
 
-// Listen for messages from content scripts or popup
+// Approach 2: Listen for AUTH_SESSION from content script (primary)
+// and legacy saveSession action (fallback)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  
+  // Primary auth handler — content script sends this
+  if (request.type === 'AUTH_SESSION' && request.session) {
+    chrome.storage.local.set({ supabase_session: request.session }, () => {
+      console.log('StickyVerse: session saved for', request.session.user?.email);
+      sendResponse({ success: true });
+    });
+    return true;
+  }
+
+  // Legacy handler
+  if (request.action === 'saveSession' && request.session) {
+    chrome.storage.local.set({ supabase_session: request.session }, () => {
+      sendResponse({ success: true });
+    });
+    return true;
+  }
+
   if (request.action === 'forceSync') {
-    // Trigger sync from newtab
     chrome.runtime.sendMessage({ action: 'syncData' });
     sendResponse({ success: true });
   }
   
   if (request.action === 'saveLink') {
-    // Save link from context menu or shortcut
     saveLink(request.data);
     sendResponse({ success: true });
   }
-  
-  return true; // Keep channel open for async
+
+  if (request.action === 'clearSession') {
+    chrome.storage.local.remove('supabase_session', () => {
+      sendResponse({ success: true });
+    });
+    return true;
+  }
+
+  return true;
 });
+
+// Approach 2 fallback: BroadcastChannel from service worker
+// Catches auth events even if content script message fails
+try {
+  const bc = new BroadcastChannel('supabase-auth');
+  bc.onmessage = (event) => {
+    if (event.data?.session) {
+      chrome.storage.local.set({ supabase_session: event.data.session }, () => {
+        console.log('StickyVerse: session saved via BroadcastChannel');
+      });
+    }
+  };
+} catch (e) {
+  console.log('BroadcastChannel not supported in this SW context');
+}
 
 // Handle extension install/update
 chrome.runtime.onInstalled.addListener((details) => {

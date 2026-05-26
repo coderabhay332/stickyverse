@@ -4,17 +4,32 @@
   "short_name": "StickyVerse",
   "description": "Your aesthetic digital workspace — notes, links, ideas & productivity",
   "version": "1.0.0",
-  "permissions": ["storage", "tabs", "activeTab"],
-  "host_permissions": ["https://kzhovelxcwychkmykirc.supabase.co/*"],
+  "permissions": ["storage", "tabs", "activeTab", "scripting"],
+  "host_permissions": [
+    "https://kzhovelxcwychkmykirc.supabase.co/*",
+    "http://localhost:3000/*",
+    "https://image.thum.io/*",
+    "https://www.google.com/s2/favicons*",
+    "https://fonts.googleapis.com/*",
+    "https://fonts.gstatic.com/*",
+    "https://cdnjs.cloudflare.com/*"
+  ],
   "action": {
     "default_popup": "popup.html"
   },
   "background": {
     "service_worker": "background.js"
   },
+  "content_scripts": [
+    {
+      "matches": ["http://localhost:3000/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "web_accessible_resources": [
     {
-      "resources": ["settings.html", "supabase-config.js"],
+      "resources": ["settings.html", "supabase-config.js", "tailwind.min.js", "supabase.min.js", "tailwind-config.js"],
       "matches": ["<all_urls>"]
     }
   ]

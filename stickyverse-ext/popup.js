@@ -5,39 +5,49 @@ document.addEventListener('DOMContentLoaded', async () => {
   let noteCount = 0;
   let linkCount = 0;
   
-  try {
-    // Try to get auth status from chrome storage
-    const result = await chrome.storage.local.get(['supabase_session', 'sv_notes', 'sv_links']);
-    
-    if (result.supabase_session) {
-      currentUser = result.supabase_session.user;
-      isAuthenticated = true;
+  async function loadAndRender() {
+    try {
+      const result = await chrome.storage.local.get(['supabase_session', 'sv_notes', 'sv_links']);
+      if (result.supabase_session) {
+        currentUser = result.supabase_session.user;
+        isAuthenticated = true;
+      } else {
+        currentUser = null;
+        isAuthenticated = false;
+      }
+      const notes = result.sv_notes || [];
+      const links = result.sv_links || [];
+      noteCount = notes.length;
+      linkCount = links.length;
+      renderCounts();
+    } catch (e) {
+      console.log('No auth session found:', e);
     }
-    
-    // Get counts
-    const notes = result.sv_notes || [];
-    const links = result.sv_links || [];
-    noteCount = notes.length;
-    linkCount = links.length;
-  } catch (e) {
-    console.log('No auth session found:', e);
   }
 
-  // Update counts based on auth status
-  const noteEl = document.getElementById('note-count');
-  const linkEl = document.getElementById('link-count');
-  
-  if (noteEl && linkEl) {
-    if (isAuthenticated) {
-      // Show synced indicator with counts
-      noteEl.textContent = `${noteCount} notes (synced)`;
-      linkEl.textContent = `${linkCount} links (synced)`;
-    } else {
-      // Show local counts
-      noteEl.textContent = `${noteCount} note${noteCount !== 1 ? 's' : ''}`;
-      linkEl.textContent = `${linkCount} link${linkCount !== 1 ? 's' : ''}`;
+  function renderCounts() {
+    const noteEl = document.getElementById('note-count');
+    const linkEl = document.getElementById('link-count');
+    if (noteEl && linkEl) {
+      if (isAuthenticated) {
+        noteEl.textContent = `${noteCount} notes (synced)`;
+        linkEl.textContent = `${linkCount} links (synced)`;
+      } else {
+        noteEl.textContent = `${noteCount} note${noteCount !== 1 ? 's' : ''}`;
+        linkEl.textContent = `${linkCount} link${linkCount !== 1 ? 's' : ''}`;
+      }
     }
   }
+
+  // Approach 3: React to session changes without reopening popup
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.supabase_session) {
+      loadAndRender();
+    }
+  });
+
+  await loadAndRender();
+  
 
   // Open workspace
   document.getElementById('open-workspace-btn').addEventListener('click', () => {

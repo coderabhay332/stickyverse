@@ -69,7 +69,8 @@ export default function DashboardPage() {
         expires_at: session.expires_at,
         user: session.user
       }
-      setToken(btoa(JSON.stringify(tokenData)))
+      const encodedToken = btoa(JSON.stringify(tokenData))
+      setToken(encodedToken)
       setShowConnectModal(true)
     }
   }

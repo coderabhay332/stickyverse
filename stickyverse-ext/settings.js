@@ -15,27 +15,56 @@ document.addEventListener('DOMContentLoaded', async () => {
   const urlToken = urlParams.get('token');
   
   if (urlToken) {
-    // Auto-connect with token from URL
     await handleConnectWithToken(urlToken);
-    // Clear token from URL
     window.history.replaceState({}, document.title, window.location.pathname);
     return;
   }
   
-  // Check for existing session
-  await checkSession();
+  // Check for existing saved session first
+  const hasSession = await checkSession();
+  
+  // If not connected, try auto-detecting from website
+  if (!hasSession) {
+    await autoDetectWebsiteSession();
+  }
   
   // Setup event listeners
   setupEventListeners();
 });
 
+async function autoDetectWebsiteSession() {
+  try {
+    showMessage('Checking if you\'re logged in on the website...', 'info');
+    
+    // Query any tab that has localhost:3000 open
+    const tabs = await chrome.tabs.query({ url: 'http://localhost:3000/*' });
+    
+    if (tabs.length === 0) {
+      // No website tab open — silently clear message, user can paste manually
+      showMessage('', '');
+      return;
+    }
+    
+    // Ask the content script in that tab for the session
+    const response = await chrome.tabs.sendMessage(tabs[0].id, { action: 'getSession' });
+    
+    if (response?.session) {
+      await handleConnectWithToken(btoa(JSON.stringify(response.session)));
+    } else {
+      showMessage('Not logged in on website. Sign in at localhost:3000 first, or paste token manually.', 'error');
+    }
+  } catch (err) {
+    // Content script not ready yet or tab issue — fail silently
+    console.log('Auto-detect skipped:', err.message);
+    showMessage('', '');
+  }
+}
+
 async function checkSession() {
   try {
-    // Get session from chrome storage
     const result = await chrome.storage.local.get(['supabase_session']);
     
     if (result.supabase_session) {
-      // Set the session in Supabase
       const { data, error } = await supabase.auth.setSession({
         access_token: result.supabase_session.access_token,
         refresh_token: result.supabase_session.refresh_token
@@ -44,15 +73,16 @@ async function checkSession() {
       if (!error && data.session) {
         currentUser = data.session.user;
         showLoggedInState();
-      } else {
-        showLoggedOutState();
+        return true; // Already connected
       }
-    } else {
-      showLoggedOutState();
     }
+    
+    showLoggedOutState();
+    return false; // Not connected
   } catch (error) {
     console.error('Error checking session:', error);
     showLoggedOutState();
+    return false;
   }
 }
 
@@ -80,7 +110,7 @@ function setupEventListeners() {
   if (webLink) {
     webLink.addEventListener('click', (e) => {
       e.preventDefault();
-      chrome.tabs.create({ url: 'https://stickyverse.app' });
+      chrome.tabs.create({ url: 'http://localhost:3000/dashboard' });
     });
   }
 }
@@ -89,7 +119,8 @@ async function handleConnectWithToken(token) {
   // Show loading state
   const messageEl = document.getElementById('message');
   if (messageEl) {
-    messageEl.innerHTML = '<div class="message success">Connecting from website...</div>';
+    messageEl.className = 'mt-3 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-sm text-green-300';
+    messageEl.textContent = 'Connecting from website...';
   }
   
   try {
@@ -269,10 +300,18 @@ function showLoggedOutState() {
 function showMessage(text, type) {
   const messageEl = document.getElementById('message');
   messageEl.textContent = text;
-  messageEl.className = `message ${type}`;
+  if (type === 'success') {
+    messageEl.className = 'mt-3 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-sm text-green-300';
+  } else if (type === 'error') {
+    messageEl.className = 'mt-3 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-sm text-red-300';
+  } else {
+    messageEl.className = 'mt-3 p-3 bg-white/10 border border-white/20 rounded-lg text-sm text-white/70';
+  }
+  messageEl.classList.remove('hidden');
   
   // Auto-hide after 5 seconds
   setTimeout(() => {
-    messageEl.innerHTML = '';
+    messageEl.textContent = '';
+    messageEl.className = 'hidden';
   }, 5000);
 }
