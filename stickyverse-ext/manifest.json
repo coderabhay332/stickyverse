@@ -8,6 +8,7 @@
   "host_permissions": [
     "https://kzhovelxcwychkmykirc.supabase.co/*",
     "http://localhost:3000/*",
+    "https://peaceful-peony-58cb08.netlify.app/*",
     "https://image.thum.io/*",
     "https://www.google.com/s2/favicons*",
     "https://fonts.googleapis.com/*",
@@ -22,7 +23,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["http://localhost:3000/*"],
+      "matches": ["http://localhost:3000/*", "https://peaceful-peony-58cb08.netlify.app/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }

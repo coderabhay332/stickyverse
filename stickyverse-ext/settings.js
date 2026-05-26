@@ -5,6 +5,8 @@
 // Initialize
 let supabase = null;
 let currentUser = null;
+let pollInterval = null;
+let isConnected = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Initialize Supabase
@@ -30,33 +32,100 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Setup event listeners
   setupEventListeners();
+  
+  const WEB_URL = 'https://peaceful-peony-58cb08.netlify.app';
+  
+  // Listen for tab updates (user logs in on website)
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if ((tab.url?.includes('localhost:3000') || tab.url?.includes('peaceful-peony-58cb08.netlify.app')) && changeInfo.status === 'complete') {
+      // Tab refreshed or navigated, check for session
+      if (!isConnected) {
+        setTimeout(() => autoDetectWebsiteSession(), 500);
+      }
+    }
+  });
+  
+  // Listen for tab activation (user switches to website tab)
+  chrome.tabs.onActivated.addListener(async (activeInfo) => {
+    const tab = await chrome.tabs.get(activeInfo.tabId);
+    if ((tab.url?.includes('localhost:3000') || tab.url?.includes('peaceful-peony-58cb08.netlify.app')) && !isConnected) {
+      setTimeout(() => autoDetectWebsiteSession(), 500);
+    }
+  });
+  
+  // Check when window gets focus (user returns to settings)
+  window.addEventListener('focus', () => {
+    if (!isConnected) {
+      autoDetectWebsiteSession();
+    }
+  });
+  
+  // Start continuous polling (faster initially, then slower)
+  startPolling();
 });
 
-async function autoDetectWebsiteSession() {
-  try {
-    showMessage('Checking if you\'re logged in on the website...', 'info');
-    
-    // Query any tab that has localhost:3000 open
-    const tabs = await chrome.tabs.query({ url: 'http://localhost:3000/*' });
-    
-    if (tabs.length === 0) {
-      // No website tab open — silently clear message, user can paste manually
-      showMessage('', '');
+function startPolling() {
+  // Clear any existing interval
+  if (pollInterval) clearInterval(pollInterval);
+  
+  let attempts = 0;
+  const maxFastAttempts = 20; // Fast polling for ~20 seconds
+  
+  pollInterval = setInterval(async () => {
+    if (isConnected) {
+      clearInterval(pollInterval);
       return;
     }
     
+    attempts++;
+    await autoDetectWebsiteSession();
+    
+    // After fast polling period, slow down
+    if (attempts >= maxFastAttempts) {
+      clearInterval(pollInterval);
+      pollInterval = setInterval(() => {
+        if (!isConnected) autoDetectWebsiteSession();
+      }, 5000); // Slower polling after initial period
+    }
+  }, 1000); // Check every second initially
+}
+
+async function autoDetectWebsiteSession() {
+  if (isConnected) return;
+  
+  const WEB_URL = 'https://peaceful-peony-58cb08.netlify.app';
+  
+  try {
+    // Query any tab that has the website open (localhost or production)
+    const localTabs = await chrome.tabs.query({ url: 'http://localhost:3000/*' });
+    const prodTabs = await chrome.tabs.query({ url: 'https://peaceful-peony-58cb08.netlify.app/*' });
+    const tabs = [...localTabs, ...prodTabs];
+
+    if (tabs.length === 0) {
+      updateConnectStatus(`Open ${WEB_URL} and sign in to connect`);
+      return;
+    }
+
     // Ask the content script in that tab for the session
     const response = await chrome.tabs.sendMessage(tabs[0].id, { action: 'getSession' });
-    
+
     if (response?.session) {
+      isConnected = true;
+      if (pollInterval) clearInterval(pollInterval);
       await handleConnectWithToken(btoa(JSON.stringify(response.session)));
     } else {
-      showMessage('Not logged in on website. Sign in at localhost:3000 first, or paste token manually.', 'error');
+      updateConnectStatus(`Not signed in on website. Sign in at ${WEB_URL}`);
     }
   } catch (err) {
-    // Content script not ready yet or tab issue — fail silently
-    console.log('Auto-detect skipped:', err.message);
-    showMessage('', '');
+    // Content script not ready or no response - this is normal
+    console.log('Waiting for content script...');
+  }
+}
+
+function updateConnectStatus(text) {
+  const statusEl = document.getElementById('connect-status');
+  if (statusEl) {
+    statusEl.textContent = text;
   }
 }
 
@@ -72,6 +141,7 @@ async function checkSession() {
       
       if (!error && data.session) {
         currentUser = data.session.user;
+        isConnected = true;
         showLoggedInState();
         return true; // Already connected
       }
@@ -87,12 +157,6 @@ async function checkSession() {
 }
 
 function setupEventListeners() {
-  // Connect button
-  const connectBtn = document.getElementById('connect-btn');
-  if (connectBtn) {
-    connectBtn.addEventListener('click', handleConnect);
-  }
-  
   // Disconnect button
   const disconnectBtn = document.getElementById('disconnect-btn');
   if (disconnectBtn) {
@@ -106,12 +170,15 @@ function setupEventListeners() {
   }
   
   // Web link
+  const WEB_URL = 'https://peaceful-peony-58cb08.netlify.app';
   const webLink = document.getElementById('web-link');
   if (webLink) {
     webLink.addEventListener('click', (e) => {
       e.preventDefault();
-      chrome.tabs.create({ url: 'http://localhost:3000/dashboard' });
+      chrome.tabs.create({ url: `${WEB_URL}/dashboard` });
     });
+    // Update link text to show production URL
+    webLink.textContent = WEB_URL;
   }
 }
 
@@ -161,66 +228,6 @@ async function handleConnectWithToken(token) {
   }
 }
 
-async function handleConnect() {
-  const tokenInput = document.getElementById('auth-token');
-  const messageEl = document.getElementById('message');
-  const connectBtn = document.getElementById('connect-btn');
-  
-  const token = tokenInput.value.trim();
-  
-  if (!token) {
-    showMessage('Please paste your auth token', 'error');
-    return;
-  }
-  
-  connectBtn.disabled = true;
-  connectBtn.textContent = 'Connecting...';
-  
-  try {
-    // Decode the token
-    const sessionData = JSON.parse(atob(token));
-    
-    if (!sessionData.access_token || !sessionData.refresh_token) {
-      throw new Error('Invalid token format');
-    }
-    
-    // Set the session in Supabase
-    const { data, error } = await supabase.auth.setSession({
-      access_token: sessionData.access_token,
-      refresh_token: sessionData.refresh_token
-    });
-    
-    if (error) throw error;
-    
-    if (data.session) {
-      // Save to chrome storage
-      await chrome.storage.local.set({
-        supabase_session: {
-          access_token: sessionData.access_token,
-          refresh_token: sessionData.refresh_token,
-          expires_at: sessionData.expires_at,
-          user: sessionData.user
-        }
-      });
-      
-      currentUser = data.session.user;
-      
-      showMessage('Connected successfully!', 'success');
-      
-      setTimeout(() => {
-        showLoggedInState();
-        tokenInput.value = '';
-      }, 1500);
-    }
-  } catch (error) {
-    console.error('Connection error:', error);
-    showMessage('Invalid token. Please copy it again from the website.', 'error');
-  } finally {
-    connectBtn.disabled = false;
-    connectBtn.textContent = 'Connect Account';
-  }
-}
-
 async function handleDisconnect() {
   if (!confirm('Are you sure? Your local data will not be deleted, but sync will stop.')) {
     return;
@@ -234,9 +241,13 @@ async function handleDisconnect() {
     await chrome.storage.local.remove(['supabase_session']);
     
     currentUser = null;
+    isConnected = false;
     
     showLoggedOutState();
     showMessage('Disconnected successfully', 'success');
+    
+    // Restart polling
+    startPolling();
   } catch (error) {
     console.error('Disconnect error:', error);
     showMessage('Error disconnecting', 'error');

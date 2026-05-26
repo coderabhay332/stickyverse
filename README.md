@@ -1,6 +1,8 @@
-# StickyVerse
+# StickyVerse ✨
 
 A beautiful Chrome Extension + Next.js Web App productivity workspace. StickyVerse replaces your browser's new tab page with a stunning dashboard for notes, bookmarks, goals, and productivity tracking.
+
+**🌐 Live Web App:** https://peaceful-peony-58cb08.netlify.app
 
 ---
 
@@ -35,7 +37,8 @@ npm install
 npm run dev
 ```
 
-The web app will run at `http://localhost:3000`.
+**Production:** https://peaceful-peony-58cb08.netlify.app  
+**Local Dev:** http://localhost:3000
 
 ### Web App Environment Variables
 
@@ -58,7 +61,14 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_rhZmRguI0mEl7vpDaL5ivg_Bz_DZLPl
 4. Select the `stickyverse-ext` folder
 5. The extension will now override your new tab page
 
-### 2. Test the Extension
+### 2. Connect to Web (for Sync)
+
+1. Visit https://peaceful-peony-58cb08.netlify.app
+2. Sign in with your Google account
+3. Open extension settings (click the extension icon → Settings)
+4. The extension will auto-detect your login and connect
+
+### 3. Test the Extension
 
 - Open a new tab - StickyVerse dashboard should appear
 - Check browser console for: `StickyVerse loaded as new tab override`

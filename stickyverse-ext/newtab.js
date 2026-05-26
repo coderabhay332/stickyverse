@@ -1710,7 +1710,7 @@ function cycleStatus(id) {
   if (!note) return;
   const idx = CYCLE.indexOf(note.status || 'none');
   note.status = CYCLE[(idx + 1) % CYCLE.length];
-  save(); renderNotes();
+  save(); renderAll();
   const labels = { 'none':'Status cleared','in-progress':'🔄 In Progress','completed':'✅ Completed','delayed':'⏳ Delayed','waiting':'🕐 Waiting for Approval','cancelled':'❌ Cancelled' };
   toast(labels[note.status] || 'Status updated');
 }
@@ -1727,13 +1727,13 @@ function toggleStar(id) {
   if (!note) return;
   note.starred = !note.starred;
   logActivity('note_starred', `${note.starred ? 'Starred' : 'Unstarred'}: "${note.title || 'Note'}"`);
-  save(); renderNotes();
+  save(); renderAll();
 }
 function togglePin(id) {
   const note = S.notes.find(n => n.id === id);
   if (!note) return;
   note.pinned = !note.pinned;
-  save(); renderNotes();
+  save(); renderAll();
   toast(note.pinned ? 'Pinned 📌' : 'Unpinned');
 }
 function deleteNote(id) {
@@ -1798,6 +1798,7 @@ function showView(v) {
   if (v === 'pinned') renderPinned();
   if (v === 'links') renderFullLinks();
   if (v === 'goals') renderGoals();
+  if (v === 'themes') buildThemesGrid();
   if (v === 'settings') document.getElementById('total-notes-desc').textContent = `${S.notes.length} notes saved`;
 }
 

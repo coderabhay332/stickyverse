@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase-client'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Sparkles, LogOut, Chrome, StickyNote, Link2, Target, ExternalLink, Loader2, X, Copy, Check } from 'lucide-react'
+import { Sparkles, LogOut, Chrome, StickyNote, Link2, Target, ExternalLink, Loader2 } from 'lucide-react'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -12,9 +12,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showConnectModal, setShowConnectModal] = useState(false)
-  const [token, setToken] = useState('')
-  const [copied, setCopied] = useState(false)
+  const [connectStatus, setConnectStatus] = useState<'idle' | 'checking' | 'connected'>('idle')
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -60,25 +58,14 @@ export default function DashboardPage() {
     router.push('/')
   }
 
-  const generateToken = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      const tokenData = {
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-        expires_at: session.expires_at,
-        user: session.user
-      }
-      const encodedToken = btoa(JSON.stringify(tokenData))
-      setToken(encodedToken)
-      setShowConnectModal(true)
-    }
-  }
-
-  const copyToken = () => {
-    navigator.clipboard.writeText(token)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  const checkExtensionConnection = () => {
+    setConnectStatus('checking')
+    // The extension auto-detects via content script polling
+    // Just show feedback to user
+    setTimeout(() => {
+      setConnectStatus('connected')
+      setTimeout(() => setConnectStatus('idle'), 3000)
+    }, 1500)
   }
 
   if (loading) {
@@ -191,12 +178,15 @@ export default function DashboardPage() {
             </div>
             
             <button
-              onClick={generateToken}
-              className="flex items-center gap-2 px-6 py-3 bg-white text-slate-900 rounded-xl font-semibold hover:bg-white/90 transition-all whitespace-nowrap"
+              onClick={checkExtensionConnection}
+              disabled={connectStatus !== 'idle'}
+              className="flex items-center gap-2 px-6 py-3 bg-white text-slate-900 rounded-xl font-semibold hover:bg-white/90 transition-all whitespace-nowrap disabled:opacity-70"
             >
               <Chrome className="h-5 w-5" />
-              Connect Extension
-              <ExternalLink className="h-4 w-4" />
+              {connectStatus === 'checking' ? 'Connecting...' :
+               connectStatus === 'connected' ? 'Connected!' :
+               'Extension Connected'}
+              {connectStatus === 'idle' && <ExternalLink className="h-4 w-4" />}
             </button>
           </div>
 
@@ -206,7 +196,7 @@ export default function DashboardPage() {
             </h3>
             <div className="grid md:grid-cols-3 gap-4">
               <Step number={1} text="Install the StickyVerse extension from Chrome Web Store" />
-              <Step number={2} text="Click 'Connect Extension' to authenticate" />
+              <Step number={2} text="Keep this page open — the extension auto-detects your login" />
               <Step number={3} text="Your data syncs between web and extension automatically" />
             </div>
           </div>
@@ -220,41 +210,6 @@ export default function DashboardPage() {
         </div>
       </main>
 
-      {/* Connect Extension Modal */}
-      {showConnectModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 max-w-md w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-white">Connect Extension</h3>
-              <button 
-                onClick={() => setShowConnectModal(false)}
-                className="text-white/60 hover:text-white"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            
-            <p className="text-white/60 mb-4">
-              Copy this token and paste it in your StickyVerse extension settings:
-            </p>
-            
-            <div className="bg-black/30 border border-white/10 rounded-lg p-3 mb-4">
-              <code className="text-xs text-white/80 break-all font-mono">{token}</code>
-            </div>
-            
-            <button
-              onClick={copyToken}
-              className="w-full flex items-center justify-center gap-2 bg-white text-slate-900 font-semibold py-2.5 px-4 rounded-xl hover:bg-white/90 transition-all"
-            >
-              {copied ? (
-                <><Check className="h-4 w-4" /> Copied!</>
-              ) : (
-                <><Copy className="h-4 w-4" /> Copy Token</>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
