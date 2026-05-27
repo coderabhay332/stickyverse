@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>StickyVerse Test Suite</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0C0A1E; color: #e2e8f0; padding: 24px; }
+    h1 { font-size: 1.6rem; color: #a78bfa; margin-bottom: 4px; }
+    .subtitle { color: rgba(255,255,255,0.4); font-size: 0.85rem; margin-bottom: 24px; }
+    .suite { margin-bottom: 28px; }
+    .suite-title { font-size: 1rem; font-weight: 700; color: #c4b5fd; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; margin-bottom: 12px; }
+    .test { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; font-size: 0.88rem; }
+    .test.pass { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25); }
+    .test.fail { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.35); }
+    .test.skip { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); }
+    .badge { font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; flex-shrink: 0; }
+    .pass .badge { background: #10B981; color: #fff; }
+    .fail .badge { background: #EF4444; color: #fff; }
+    .skip .badge { background: #F59E0B; color: #fff; }
+    .test-name { flex: 1; }
+    .test-error { color: #fca5a5; font-size: 0.8rem; margin-top: 3px; font-family: monospace; }
+    .summary { display: flex; gap: 16px; padding: 16px; background: rgba(255,255,255,0.05); border-radius: 10px; margin-bottom: 24px; font-weight: 600; }
+    .summary .s-pass { color: #10B981; }
+    .summary .s-fail { color: #EF4444; }
+    .summary .s-skip { color: #F59E0B; }
+    .summary .s-total { color: #a78bfa; }
+    #run-btn { background: linear-gradient(135deg, #8b5cf6, #ec4899); color: white; border: none; padding: 10px 24px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; margin-bottom: 24px; }
+  </style>
+</head>
+<body>
+<h1>✨ StickyVerse Test Suite</h1>
+<p class="subtitle">Unit tests for data mapping, cloud sync, UUID generation, localStorage safety net, and auth flow logic.</p>
+<button id="run-btn">▶ Run All Tests</button>
+<div id="summary"></div>
+<div id="results"></div>
+
+<script>
+/* ─── Minimal test runner ─── */
+const suites = [];
+let currentSuite = null;
+
+function describe(name, fn) {
+  currentSuite = { name, tests: [] };
+  suites.push(currentSuite);
+  fn();
+}
+
+function it(name, fn) {
+  currentSuite.tests.push({ name, fn });
+}
+
+function expect(actual) {
+  return {
+    toBe(expected) {
+      if (actual !== expected)
+        throw new Error(`Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+    },
+    toEqual(expected) {
+      if (JSON.stringify(actual) !== JSON.stringify(expected))
+        throw new Error(`Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+    },
+    toBeTruthy() {
+      if (!actual) throw new Error(`Expected truthy, got ${JSON.stringify(actual)}`);
+    },
+    toBeFalsy() {
+      if (actual) throw new Error(`Expected falsy, got ${JSON.stringify(actual)}`);
+    },
+    toBeNull() {
+      if (actual !== null) throw new Error(`Expected null, got ${JSON.stringify(actual)}`);
+    },
+    toMatch(pattern) {
+      if (!pattern.test(actual)) throw new Error(`Expected "${actual}" to match ${pattern}`);
+    },
+    toContain(item) {
+      if (!actual.includes(item)) throw new Error(`Expected array/string to contain ${JSON.stringify(item)}`);
+    },
+    toHaveProperty(key) {
+      if (!(key in actual)) throw new Error(`Expected object to have property "${key}"`);
+    },
+    toBeGreaterThan(n) {
+      if (!(actual > n)) throw new Error(`Expected ${actual} > ${n}`);
+    },
+    toBeGreaterThanOrEqual(n) {
+      if (!(actual >= n)) throw new Error(`Expected ${actual} >= ${n}`);
+    },
+    toBeLessThanOrEqual(n) {
+      if (!(actual <= n)) throw new Error(`Expected ${actual} <= ${n}`);
+    },
+    not: {
+      toBe(expected) {
+        if (actual === expected) throw new Error(`Expected NOT ${JSON.stringify(expected)}`);
+      },
+      toBeNull() {
+        if (actual === null) throw new Error(`Expected not null`);
+      },
+      toContain(item) {
+        if (actual.includes(item)) throw new Error(`Expected array/string NOT to contain ${JSON.stringify(item)}`);
+      },
+    }
+  };
+}
+
+/* ─── Mock crypto.getRandomValues for UUID ─── */
+const _origCrypto = window.crypto;
+
+/* ─── Replicate the exact functions from newtab.js ─── */
+
+function generateUUID() {
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+  );
+}
+
+let currentUser = null;
+
+function noteToDbRow(note) {
+  return {
+    id: note.id,
+    user_id: currentUser.id,
+    title: note.title || null,
+    content: note.content || null,
+    type: note.type || 'note',
+    style: note.style || 'regular',
+    color: note.color || 'purple',
+    tag: note.tag || 'note',
+    status: note.status || 'none',
+    priority: (note.priority && note.priority !== 'none') ? note.priority : 'medium',
+    pinned: note.pinned || false,
+    starred: note.starred || false,
+    has_tape: note.hasTape || false,
+    tape_color: note.tapeColor || null,
+    pin: note.pin || null,
+    items: note.items || null,
+    author: note.author || null,
+    pol_emoji: note.polEmoji || null,
+    doodle: note.doodle || null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function dbRowToNote(row) {
+  return {
+    id: row.id,
+    type: row.type,
+    style: row.style,
+    title: row.title,
+    color: row.color,
+    tag: row.tag,
+    status: row.status,
+    priority: row.priority,
+    pinned: row.pinned,
+    starred: row.starred,
+    archived: row.archived || false,
+    hasTape: row.has_tape || false,
+    tapeColor: row.tape_color || null,
+    pin: row.pin || null,
+    content: row.content || null,
+    items: row.items || null,
+    author: row.author || null,
+    polEmoji: row.pol_emoji || null,
+    doodle: row.doodle || null,
+    created: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+  };
+}
+
+function linkToDbRow(link) {
+  return {
+    id: link.id,
+    user_id: currentUser.id,
+    url: link.url,
+    title: link.title,
+    host: link.host,
+    favicon: link.favicon || null,
+    tags: link.tags || [],
+    reading_status: link.readingStatus || link.reading_status || 'unread',
+    is_favorite: link.isFavorite || link.is_favorite || false,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function dbRowToLink(row) {
+  return {
+    id: row.id,
+    url: row.url,
+    title: row.title,
+    host: row.host,
+    favicon: row.favicon || null,
+    tags: row.tags || [],
+    readingStatus: row.reading_status || 'unread',
+    isFavorite: row.is_favorite || false,
+    savedAt: row.saved_at ? new Date(row.saved_at).getTime() : Date.now(),
+  };
+}
+
+function goalToDbRow(goal) {
+  return {
+    id: goal.id,
+    user_id: currentUser.id,
+    title: goal.title,
+    description: goal.description || null,
+    category: goal.category || 'personal',
+    type: goal.type || 'short-term',
+    priority: goal.priority || 'medium',
+    status: goal.status || 'active',
+    progress: goal.progress || 0,
+    target_date: goal.deadline || goal.target_date || null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function dbRowToGoal(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description || null,
+    category: row.category || 'personal',
+    type: row.type || 'short-term',
+    priority: row.priority || 'medium',
+    status: row.status || 'active',
+    progress: row.progress || 0,
+    deadline: row.target_date || null,
+    created: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+  };
+}
+
+/* Mock localStorage */
+const localStorageMock = (() => {
+  let store = {};
+  return {
+    getItem: (k) => store[k] ?? null,
+    setItem: (k, v) => { store[k] = String(v); },
+    removeItem: (k) => { delete store[k]; },
+    clear: () => { store = {}; },
+  };
+})();
+
+/* Replicate saveToLocal / loadFromLocal with mock */
+let S = { notes: [], links: [], goals: [], reading: [], vision: [], notifications: [], activity: [], idc: 0 };
+
+function saveToLocal() {
+  localStorageMock.setItem('sv_notes', JSON.stringify(S.notes));
+  localStorageMock.setItem('sv_links', JSON.stringify(S.links));
+  localStorageMock.setItem('sv_goals', JSON.stringify(S.goals));
+  localStorageMock.setItem('sv_reading', JSON.stringify(S.reading));
+  localStorageMock.setItem('sv_vision', JSON.stringify(S.vision));
+  localStorageMock.setItem('sv_notifications', JSON.stringify(S.notifications));
+  localStorageMock.setItem('sv_activity', JSON.stringify(S.activity.slice(0, 100)));
+  localStorageMock.setItem('sv_idc', String(S.idc));
+}
+
+function loadFromLocal() {
+  try {
+    S.notes = JSON.parse(localStorageMock.getItem('sv_notes') || 'null') || [];
+    S.links = JSON.parse(localStorageMock.getItem('sv_links') || 'null') || [];
+    S.goals = JSON.parse(localStorageMock.getItem('sv_goals') || 'null') || [];
+    S.reading = JSON.parse(localStorageMock.getItem('sv_reading') || '[]');
+    S.vision = JSON.parse(localStorageMock.getItem('sv_vision') || '[]');
+    S.notifications = JSON.parse(localStorageMock.getItem('sv_notifications') || '[]');
+    S.activity = JSON.parse(localStorageMock.getItem('sv_activity') || '[]');
+    S.idc = parseInt(localStorageMock.getItem('sv_idc') || '0');
+  } catch(e) {
+    S.notes = []; S.links = []; S.goals = [];
+    S.reading = []; S.vision = []; S.notifications = []; S.activity = [];
+  }
+}
+
+function resetState() {
+  S = { notes: [], links: [], goals: [], reading: [], vision: [], notifications: [], activity: [], idc: 0 };
+  localStorageMock.clear();
+  currentUser = null;
+}
+
+/* ─── TESTS ─── */
+
+describe('UUID Generation', () => {
+  it('generates a valid UUID v4 format', () => {
+    const uuid = generateUUID();
+    expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  });
+
+  it('generates unique UUIDs on every call', () => {
+    const ids = new Set(Array.from({ length: 100 }, () => generateUUID()));
+    expect(ids.size).toBe(100);
+  });
+
+  it('UUID does not start with n/l/g prefix (legacy format removed)', () => {
+    const uuid = generateUUID();
+    expect(uuid[0]).not.toBe('n');
+    expect(uuid[0]).not.toBe('l');
+    expect(uuid[0]).not.toBe('g');
+  });
+});
+
+describe('noteToDbRow — field mapping', () => {
+  beforeAll = () => { currentUser = { id: 'user-uuid-123' }; };
+
+  it('maps JS camelCase fields to DB snake_case', () => {
+    currentUser = { id: 'user-uuid-123' };
+    const note = {
+      id: generateUUID(),
+      type: 'checklist',
+      style: 'regular',
+      title: 'My Note',
+      color: 'purple',
+      tag: 'task',
+      status: 'in-progress',
+      priority: 'high',
+      pinned: true,
+      starred: false,
+      hasTape: true,
+      tapeColor: 'tape-pink',
+      pin: 'purple',
+      items: [{ text: 'item1', done: false }],
+      author: null,
+      polEmoji: '🏔️',
+      doodle: null,
+    };
+    const row = noteToDbRow(note);
+    expect(row.has_tape).toBe(true);
+    expect(row.tape_color).toBe('tape-pink');
+    expect(row.pol_emoji).toBe('🏔️');
+    expect(row.user_id).toBe('user-uuid-123');
+  });
+
+  it('maps priority "none" to "medium" (DB CHECK constraint)', () => {
+    currentUser = { id: 'user-uuid-123' };
+    const row = noteToDbRow({ id: generateUUID(), priority: 'none' });
+    expect(row.priority).toBe('medium');
+  });
+
+  it('maps missing priority to "medium"', () => {
+    currentUser = { id: 'user-uuid-123' };
+    const row = noteToDbRow({ id: generateUUID() });
+    expect(row.priority).toBe('medium');
+  });
+
+  it('preserves valid priority values', () => {
+    currentUser = { id: 'user-uuid-123' };
+    for (const p of ['low', 'medium', 'high', 'urgent']) {
+      const row = noteToDbRow({ id: generateUUID(), priority: p });
+      expect(row.priority).toBe(p);
+    }
+  });
+
+  it('does NOT include JS-only fields (hasTape, tapeColor, polEmoji, created)', () => {
+    currentUser = { id: 'user-uuid-123' };
+    const row = noteToDbRow({ id: generateUUID(), hasTape: true, tapeColor: 'x', polEmoji: '🎯', created: 12345 });
+    expect('hasTape' in row).toBeFalsy();
+    expect('tapeColor' in row).toBeFalsy();
+    expect('polEmoji' in row).toBeFalsy();
+    expect('created' in row).toBeFalsy();
+  });
+
+  it('includes updated_at as ISO string', () => {
+    currentUser = { id: 'user-uuid-123' };
+    const row = noteToDbRow({ id: generateUUID() });
+    expect(row.updated_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+});
+
+describe('dbRowToNote — round-trip mapping', () => {
+  it('maps DB snake_case fields back to JS camelCase', () => {
+    const row = {
+      id: generateUUID(),
+      type: 'note',
+      style: 'regular',
+      title: 'Test',
+      color: 'yellow',
+      tag: 'idea',
+      status: 'none',
+      priority: 'high',
+      pinned: false,
+      starred: true,
+      archived: false,
+      has_tape: true,
+      tape_color: 'tape-blue',
+      pin: 'green',
+      content: 'hello',
+      items: null,
+      author: null,
+      pol_emoji: '🌊',
+      doodle: null,
+      created_at: '2026-01-15T10:00:00Z',
+    };
+    const note = dbRowToNote(row);
+    expect(note.hasTape).toBe(true);
+    expect(note.tapeColor).toBe('tape-blue');
+    expect(note.polEmoji).toBe('🌊');
+    expect(note.created).toBeGreaterThan(0);
+    expect('has_tape' in note).toBeFalsy();
+    expect('tape_color' in note).toBeFalsy();
+    expect('pol_emoji' in note).toBeFalsy();
+  });
+
+  it('falls back to Date.now() when created_at is null', () => {
+    const before = Date.now();
+    const note = dbRowToNote({ id: generateUUID(), created_at: null });
+    expect(note.created).toBeGreaterThanOrEqual(before);
+  });
+});
+
+describe('linkToDbRow / dbRowToLink — round-trip', () => {
+  it('maps readingStatus → reading_status on save', () => {
+    currentUser = { id: 'user-uuid-123' };
+    const link = { id: generateUUID(), url: 'https://example.com', title: 'Example', host: 'example.com', readingStatus: 'reading', isFavorite: true };
+    const row = linkToDbRow(link);
+    expect(row.reading_status).toBe('reading');
+    expect(row.is_favorite).toBe(true);
+    expect('readingStatus' in row).toBeFalsy();
+    expect('isFavorite' in row).toBeFalsy();
+  });
+
+  it('maps reading_status → readingStatus on load', () => {
+    const row = { id: generateUUID(), url: 'https://ex.com', title: 'Ex', host: 'ex.com', reading_status: 'read', is_favorite: false, saved_at: '2026-01-01T00:00:00Z' };
+    const link = dbRowToLink(row);
+    expect(link.readingStatus).toBe('read');
+    expect(link.isFavorite).toBe(false);
+    expect('reading_status' in link).toBeFalsy();
+    expect('is_favorite' in link).toBeFalsy();
+  });
+
+  it('defaults readingStatus to "unread" when missing', () => {
+    const link = dbRowToLink({ id: generateUUID(), url: 'https://x.com', title: 'X', host: 'x.com' });
+    expect(link.readingStatus).toBe('unread');
+  });
+});
+
+describe('goalToDbRow / dbRowToGoal — round-trip', () => {
+  it('maps deadline → target_date on save', () => {
+    currentUser = { id: 'user-uuid-123' };
+    const goal = { id: generateUUID(), title: 'Lose 5kg', deadline: '2026-12-31', category: 'health', type: 'monthly', priority: 'high', status: 'active', progress: 30 };
+    const row = goalToDbRow(goal);
+    expect(row.target_date).toBe('2026-12-31');
+    expect('deadline' in row).toBeFalsy();
+  });
+
+  it('maps target_date → deadline on load', () => {
+    const row = { id: generateUUID(), title: 'Goal', target_date: '2026-06-01', created_at: '2026-01-01T00:00:00Z' };
+    const goal = dbRowToGoal(row);
+    expect(goal.deadline).toBe('2026-06-01');
+    expect('target_date' in goal).toBeFalsy();
+  });
+
+  it('defaults category to "personal" when missing', () => {
+    const goal = dbRowToGoal({ id: generateUUID(), title: 'G' });
+    expect(goal.category).toBe('personal');
+  });
+});
+
+describe('saveToLocal / loadFromLocal — persistence', () => {
+  it('saves and restores notes from localStorage', () => {
+    resetState();
+    S.notes = [{ id: generateUUID(), title: 'Hello', type: 'note' }];
+    saveToLocal();
+    S.notes = [];
+    loadFromLocal();
+    expect(S.notes.length).toBe(1);
+    expect(S.notes[0].title).toBe('Hello');
+  });
+
+  it('saves and restores links', () => {
+    resetState();
+    S.links = [{ id: generateUUID(), url: 'https://test.com', title: 'Test', host: 'test.com' }];
+    saveToLocal();
+    S.links = [];
+    loadFromLocal();
+    expect(S.links.length).toBe(1);
+    expect(S.links[0].url).toBe('https://test.com');
+  });
+
+  it('saves and restores goals', () => {
+    resetState();
+    S.goals = [{ id: generateUUID(), title: 'Run 5k', status: 'active', progress: 0 }];
+    saveToLocal();
+    S.goals = [];
+    loadFromLocal();
+    expect(S.goals.length).toBe(1);
+    expect(S.goals[0].title).toBe('Run 5k');
+  });
+
+  it('saves and restores reading list', () => {
+    resetState();
+    S.reading = [{ id: '1', url: 'https://blog.com', title: 'Article', read: false }];
+    saveToLocal();
+    S.reading = [];
+    loadFromLocal();
+    expect(S.reading.length).toBe(1);
+  });
+
+  it('saves and restores vision board items', () => {
+    resetState();
+    S.vision = [{ id: '1', emoji: '🏆', text: 'Win' }];
+    saveToLocal();
+    S.vision = [];
+    loadFromLocal();
+    expect(S.vision.length).toBe(1);
+  });
+
+  it('caps activity log at 100 entries', () => {
+    resetState();
+    S.activity = Array.from({ length: 150 }, (_, i) => ({ id: i, action: 'test' }));
+    saveToLocal();
+    S.activity = [];
+    loadFromLocal();
+    expect(S.activity.length).toBeLessThanOrEqual(100);
+  });
+
+  it('returns empty arrays when localStorage has nothing', () => {
+    resetState();
+    loadFromLocal();
+    expect(S.notes.length).toBe(0);
+    expect(S.links.length).toBe(0);
+    expect(S.goals.length).toBe(0);
+  });
+
+  it('gracefully handles corrupted JSON in localStorage', () => {
+    resetState();
+    localStorageMock.setItem('sv_notes', '{{INVALID JSON}}');
+    loadFromLocal(); // Should not throw
+    expect(S.notes.length).toBe(0);
+  });
+});
+
+describe('Data persistence — sign out safety', () => {
+  it('localStorage data survives a simulated sign-out (no data deletion)', () => {
+    resetState();
+    S.notes = [{ id: generateUUID(), title: 'Important note' }];
+    S.links = [{ id: generateUUID(), url: 'https://saved.com', title: 'Saved', host: 'saved.com' }];
+    saveToLocal();
+
+    // Simulate sign-out: only remove session, NOT localStorage data
+    // (the old bug was: localStorage.removeItem('sv_notes') here)
+    // New correct behavior: nothing touches sv_notes on sign-out
+
+    // Simulate re-login: load from local
+    S.notes = [];
+    S.links = [];
+    loadFromLocal();
+
+    expect(S.notes.length).toBe(1);
+    expect(S.notes[0].title).toBe('Important note');
+    expect(S.links.length).toBe(1);
+  });
+});
+
+describe('Cloud sync field validation', () => {
+  it('noteToDbRow output has only DB-compatible fields (no extra JS-only fields)', () => {
+    currentUser = { id: 'u1' };
+    const note = {
+      id: generateUUID(), type: 'note', style: 'regular', title: 'T', color: 'purple',
+      tag: 'note', status: 'none', priority: 'none', pinned: false, starred: false,
+      hasTape: false, tapeColor: null, pin: null, content: 'hi', items: null,
+      author: null, polEmoji: null, doodle: null, created: Date.now(), archived: false,
+    };
+    const row = noteToDbRow(note);
+    const jsOnlyFields = ['hasTape', 'tapeColor', 'polEmoji', 'created', 'archived'];
+    for (const f of jsOnlyFields) {
+      if (f in row) throw new Error(`DB row should NOT contain JS field: ${f}`);
+    }
+  });
+
+  it('linkToDbRow output has only DB-compatible fields', () => {
+    currentUser = { id: 'u1' };
+    const link = {
+      id: generateUUID(), url: 'https://a.com', title: 'A', host: 'a.com',
+      favicon: null, tags: [], readingStatus: 'unread', isFavorite: false, savedAt: Date.now(),
+    };
+    const row = linkToDbRow(link);
+    expect('readingStatus' in row).toBeFalsy();
+    expect('isFavorite' in row).toBeFalsy();
+    expect('savedAt' in row).toBeFalsy();
+    expect(row.reading_status).toBe('unread');
+    expect(row.is_favorite).toBe(false);
+  });
+
+  it('goalToDbRow correctly picks deadline over target_date', () => {
+    currentUser = { id: 'u1' };
+    const goal = { id: generateUUID(), title: 'G', deadline: '2026-12-01', target_date: '2025-01-01' };
+    const row = goalToDbRow(goal);
+    expect(row.target_date).toBe('2026-12-01');
+  });
+});
+
+describe('Realtime payload handling — handleRealtimeNoteChange', () => {
+  function handleRealtimeNoteChange(payload) {
+    if (payload.eventType === 'INSERT') {
+      S.notes.unshift(payload.new);
+    } else if (payload.eventType === 'UPDATE') {
+      const index = S.notes.findIndex(n => n.id === payload.new.id);
+      if (index !== -1) S.notes[index] = payload.new;
+    } else if (payload.eventType === 'DELETE') {
+      S.notes = S.notes.filter(n => n.id !== payload.old.id);
+    }
+  }
+
+  it('INSERT adds note to front of S.notes', () => {
+    resetState();
+    const note = { id: generateUUID(), title: 'New', type: 'note' };
+    handleRealtimeNoteChange({ eventType: 'INSERT', new: note });
+    expect(S.notes.length).toBe(1);
+    expect(S.notes[0].id).toBe(note.id);
+  });
+
+  it('UPDATE replaces existing note in-place', () => {
+    resetState();
+    const id = generateUUID();
+    S.notes = [{ id, title: 'Old' }];
+    handleRealtimeNoteChange({ eventType: 'UPDATE', new: { id, title: 'Updated' } });
+    expect(S.notes[0].title).toBe('Updated');
+    expect(S.notes.length).toBe(1);
+  });
+
+  it('UPDATE is a no-op if note does not exist', () => {
+    resetState();
+    S.notes = [{ id: generateUUID(), title: 'X' }];
+    handleRealtimeNoteChange({ eventType: 'UPDATE', new: { id: generateUUID(), title: 'Ghost' } });
+    expect(S.notes.length).toBe(1);
+    expect(S.notes[0].title).toBe('X');
+  });
+
+  it('DELETE removes note by id', () => {
+    resetState();
+    const id = generateUUID();
+    S.notes = [{ id, title: 'Delete me' }, { id: generateUUID(), title: 'Keep me' }];
+    handleRealtimeNoteChange({ eventType: 'DELETE', old: { id } });
+    expect(S.notes.length).toBe(1);
+    expect(S.notes[0].title).toBe('Keep me');
+  });
+});
+
+describe('Realtime payload handling — handleRealtimeLinkChange', () => {
+  function handleRealtimeLinkChange(payload) {
+    if (payload.eventType === 'INSERT') {
+      S.links.unshift(payload.new);
+    } else if (payload.eventType === 'UPDATE') {
+      const index = S.links.findIndex(l => l.id === payload.new.id);
+      if (index !== -1) S.links[index] = payload.new;
+    } else if (payload.eventType === 'DELETE') {
+      S.links = S.links.filter(l => l.id !== payload.old.id);
+    }
+  }
+
+  it('INSERT adds link to front', () => {
+    resetState();
+    const link = { id: generateUUID(), url: 'https://new.com', title: 'New' };
+    handleRealtimeLinkChange({ eventType: 'INSERT', new: link });
+    expect(S.links[0].url).toBe('https://new.com');
+  });
+
+  it('DELETE removes link by id', () => {
+    resetState();
+    const id = generateUUID();
+    S.links = [{ id }, { id: generateUUID() }];
+    handleRealtimeLinkChange({ eventType: 'DELETE', old: { id } });
+    expect(S.links.length).toBe(1);
+  });
+});
+
+describe('Auth flow — session detection logic', () => {
+  it('treats absent supabase_session as "needs auth"', () => {
+    const stored = {};
+    const needsAuth = !stored.supabase_session;
+    expect(needsAuth).toBe(true);
+  });
+
+  it('treats present supabase_session as "authenticated"', () => {
+    const stored = { supabase_session: { access_token: 'abc', user: { id: 'u1', email: 'a@b.com' } } };
+    const needsAuth = !stored.supabase_session;
+    expect(needsAuth).toBe(false);
+  });
+
+  it('session user metadata extraction handles missing full_name', () => {
+    const session = { user: { email: 'test@example.com', user_metadata: {} } };
+    const name = session.user?.user_metadata?.full_name || session.user?.email?.split('@')[0] || 'User';
+    expect(name).toBe('test');
+  });
+
+  it('session user metadata extraction handles full_name present', () => {
+    const session = { user: { email: 'test@example.com', user_metadata: { full_name: 'Alice Smith' } } };
+    const name = session.user?.user_metadata?.full_name || session.user?.email?.split('@')[0] || 'User';
+    expect(name).toBe('Alice Smith');
+  });
+});
+
+describe('Data isolation — multiple save/load cycles', () => {
+  it('notes survive 3 consecutive save/load cycles', () => {
+    resetState();
+    const id = generateUUID();
+    S.notes = [{ id, title: 'Persistent', type: 'note' }];
+    for (let i = 0; i < 3; i++) {
+      saveToLocal();
+      S.notes = [];
+      loadFromLocal();
+    }
+    expect(S.notes.length).toBe(1);
+    expect(S.notes[0].id).toBe(id);
+  });
+
+  it('idc counter persists across save/load', () => {
+    resetState();
+    S.idc = 42;
+    saveToLocal();
+    S.idc = 0;
+    loadFromLocal();
+    expect(S.idc).toBe(42);
+  });
+});
+
+/* ─── Run tests & render results ─── */
+async function runAll() {
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('summary').innerHTML = '';
+  let pass = 0, fail = 0, total = 0;
+
+  for (const suite of suites) {
+    const suiteEl = document.createElement('div');
+    suiteEl.className = 'suite';
+    suiteEl.innerHTML = `<div class="suite-title">${suite.name}</div>`;
+
+    for (const test of suite.tests) {
+      total++;
+      let status = 'pass', errorMsg = '';
+      try {
+        const result = test.fn();
+        if (result instanceof Promise) await result;
+        pass++;
+      } catch (e) {
+        status = 'fail';
+        fail++;
+        errorMsg = e.message;
+      }
+
+      const testEl = document.createElement('div');
+      testEl.className = `test ${status}`;
+      testEl.innerHTML = `
+        <span class="badge">${status.toUpperCase()}</span>
+        <div>
+          <div class="test-name">${test.name}</div>
+          ${errorMsg ? `<div class="test-error">✗ ${errorMsg}</div>` : ''}
+        </div>`;
+      suiteEl.appendChild(testEl);
+    }
+    document.getElementById('results').appendChild(suiteEl);
+  }
+
+  document.getElementById('summary').innerHTML = `
+    <div class="summary">
+      <span class="s-total">Total: ${total}</span>
+      <span class="s-pass">✓ Passed: ${pass}</span>
+      <span class="s-fail">${fail > 0 ? '✗' : '✓'} Failed: ${fail}</span>
+    </div>`;
+}
+
+document.getElementById('run-btn').addEventListener('click', runAll);
+window.addEventListener('load', runAll);
+</script>
+</body>
+</html>

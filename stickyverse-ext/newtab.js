@@ -49,6 +49,15 @@ const THEMES = [
 ];
 
 /* ══════════════════════════════════════
+   UTILS
+══════════════════════════════════════ */
+function generateUUID() {
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+  );
+}
+
+/* ══════════════════════════════════════
    STATE
 ══════════════════════════════════════ */
 let S = {
@@ -393,7 +402,9 @@ async function checkAuthAndRedirect() {
 
 async function tryGetSessionFromWebsite() {
   try {
-    const tabs = await chrome.tabs.query({ url: 'http://localhost:3000/*' });
+    const localTabs = await chrome.tabs.query({ url: 'http://localhost:3000/*' });
+    const prodTabs = await chrome.tabs.query({ url: 'https://peaceful-peony-58cb08.netlify.app/*' });
+    const tabs = [...localTabs, ...prodTabs];
     if (tabs.length === 0) return null;
     
     const response = await chrome.tabs.sendMessage(tabs[0].id, { action: 'getSession' });
@@ -464,8 +475,7 @@ function showLoginRequiredOverlay() {
         align-items: center;
         gap: 8px;
         margin-bottom: 1rem;
-      " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 30px rgba(139, 92, 246, 0.4)';" 
-      onmouseout="this.style.transform='none'; this.style.boxShadow='none';">
+      ">
         <span>🚀</span> Sign In on Website
       </button>
       
@@ -487,14 +497,31 @@ function showLoginRequiredOverlay() {
         cursor: pointer;
         margin-top: 0.5rem;
         transition: all 0.2s;
-      " onmouseover="this.style.background='rgba(255,255,255,0.15)';" 
-      onmouseout="this.style.background='rgba(255,255,255,0.1)';">
+      ">
         Continue Locally →
       </button>
     </div>
   `;
   
   document.body.appendChild(overlay);
+
+  // Hover effects via JS (CSP blocks inline onmouseover/onmouseout)
+  const loginBtn = document.getElementById('login-redirect-btn');
+  if (loginBtn) {
+    loginBtn.addEventListener('mouseover', () => {
+      loginBtn.style.transform = 'translateY(-2px)';
+      loginBtn.style.boxShadow = '0 10px 30px rgba(139, 92, 246, 0.4)';
+    });
+    loginBtn.addEventListener('mouseout', () => {
+      loginBtn.style.transform = 'none';
+      loginBtn.style.boxShadow = 'none';
+    });
+  }
+  const dismissBtn = document.getElementById('dismiss-auth-btn');
+  if (dismissBtn) {
+    dismissBtn.addEventListener('mouseover', () => { dismissBtn.style.background = 'rgba(255,255,255,0.15)'; });
+    dismissBtn.addEventListener('mouseout', () => { dismissBtn.style.background = 'rgba(255,255,255,0.1)'; });
+  }
   
   let pollInterval = null;
 
@@ -509,29 +536,46 @@ function showLoginRequiredOverlay() {
       btn.style.opacity = '0.7';
     }
 
-    // Poll chrome.storage every 1.5s — background.js saves session when content script pushes it
+    async function checkAndHandleSession(session) {
+      if (!session) return false;
+      clearInterval(pollInterval);
+      pollInterval = null;
+      await chrome.storage.local.set({ supabase_session: session });
+      const name = session.user?.user_metadata?.full_name || session.user?.email || 'User';
+      overlay.innerHTML = `
+        <div style="text-align:center; color:white; font-family:'DM Sans',sans-serif;">
+          <div style="font-size:3rem; margin-bottom:1rem;">✅</div>
+          <h2 style="font-size:1.5rem; font-weight:700; margin-bottom:0.5rem;">Connected!</h2>
+          <p style="color:rgba(255,255,255,0.7);">Welcome, ${name}!</p>
+          <p style="color:rgba(255,255,255,0.4); font-size:0.85rem; margin-top:0.5rem;">Loading your workspace...</p>
+        </div>
+      `;
+      setTimeout(() => window.location.reload(), 1500);
+      return true;
+    }
+
+    // Poll every 1.5s: check chrome.storage AND actively query website tabs
     pollInterval = setInterval(async () => {
       try {
+        // 1. Check if background.js already saved a session
         const result = await chrome.storage.local.get(['supabase_session']);
         if (result.supabase_session) {
-          clearInterval(pollInterval);
-          pollInterval = null;
+          await checkAndHandleSession(result.supabase_session);
+          return;
+        }
 
-          const name = result.supabase_session.user?.user_metadata?.full_name || 
-                       result.supabase_session.user?.email || 'User';
-
-          // Show success
-          overlay.innerHTML = `
-            <div style="text-align:center; color:white; font-family:'DM Sans',sans-serif;">
-              <div style="font-size:3rem; margin-bottom:1rem;">✅</div>
-              <h2 style="font-size:1.5rem; font-weight:700; margin-bottom:0.5rem;">Connected!</h2>
-              <p style="color:rgba(255,255,255,0.7);">Welcome, ${name}!</p>
-              <p style="color:rgba(255,255,255,0.4); font-size:0.85rem; margin-top:0.5rem;">Loading your workspace...</p>
-            </div>
-          `;
-
-          // Reload page to fully initialize with session
-          setTimeout(() => window.location.reload(), 1500);
+        // 2. Actively ask any open website tab for session
+        const localTabs = await chrome.tabs.query({ url: 'http://localhost:3000/*' });
+        const prodTabs = await chrome.tabs.query({ url: 'https://peaceful-peony-58cb08.netlify.app/*' });
+        const tabs = [...localTabs, ...prodTabs];
+        for (const tab of tabs) {
+          try {
+            const response = await chrome.tabs.sendMessage(tab.id, { action: 'getSession' });
+            if (response?.session) {
+              await checkAndHandleSession(response.session);
+              return;
+            }
+          } catch (e) { /* tab not ready, try next */ }
         }
       } catch (e) {
         // Keep polling
@@ -554,9 +598,11 @@ function showLoginRequiredOverlay() {
   }
 
   document.getElementById('login-redirect-btn').addEventListener('click', async () => {
-    // Check if any localhost:3000 tab is already open and logged in
+    // Check if any website tab is already open and logged in
     try {
-      const tabs = await chrome.tabs.query({ url: 'http://localhost:3000/*' });
+      const localTabs = await chrome.tabs.query({ url: 'http://localhost:3000/*' });
+      const prodTabs = await chrome.tabs.query({ url: 'https://peaceful-peony-58cb08.netlify.app/*' });
+      const tabs = [...localTabs, ...prodTabs];
       if (tabs.length > 0) {
         const response = await chrome.tabs.sendMessage(tabs[0].id, { action: 'getSession' });
         if (response?.session) {
@@ -569,7 +615,7 @@ function showLoginRequiredOverlay() {
 
     // Open dashboard (not /auth — user may already be logged in)
     // If not logged in, website will redirect to /auth automatically
-    const newTab = await chrome.tabs.create({ url: 'http://localhost:3000/dashboard' });
+    const newTab = await chrome.tabs.create({ url: 'https://peaceful-peony-58cb08.netlify.app/dashboard' });
     startPolling();
 
     // Once tab finishes loading, actively ask it for session
@@ -640,32 +686,21 @@ function handleRealtimeLinkChange(payload) {
 
 async function migrateToCloud() {
   if (!currentUser) return;
-  
   try {
-    // Get local data
     const localNotes = JSON.parse(localStorage.getItem('sv_notes') || '[]');
     const localLinks = JSON.parse(localStorage.getItem('sv_links') || '[]');
-    
-    // Upload notes to cloud
-    for (const note of localNotes) {
-      await supabase.from('notes').upsert({
-        ...note,
-        user_id: currentUser.id,
-        synced_at: new Date().toISOString()
-      });
+    const localGoals = JSON.parse(localStorage.getItem('sv_goals') || '[]');
+
+    if (localNotes.length > 0) {
+      await supabase.from('notes').upsert(localNotes.map(noteToDbRow), { onConflict: 'id' });
     }
-    
-    // Upload links to cloud
-    for (const link of localLinks) {
-      await supabase.from('links').upsert({
-        ...link,
-        user_id: currentUser.id,
-        synced_at: new Date().toISOString()
-      });
+    if (localLinks.length > 0) {
+      await supabase.from('links').upsert(localLinks.map(linkToDbRow), { onConflict: 'id' });
     }
-    
-    console.log('✅ Data migrated to cloud');
-    
+    if (localGoals.length > 0) {
+      await supabase.from('goals').upsert(localGoals.map(goalToDbRow), { onConflict: 'id' });
+    }
+    console.log('✅ Local data migrated to cloud');
   } catch (error) {
     console.error('Cloud migration failed:', error);
   }
@@ -686,34 +721,33 @@ async function loadData() {
 
 async function loadFromCloud() {
   try {
-    const { data: notes, error: notesError } = await supabase
-      .from('notes')
-      .select('*')
-      .eq('user_id', currentUser.id)
-      .order('created_at', { ascending: false });
-      
-    const { data: links, error: linksError } = await supabase
-      .from('links')
-      .select('*')
-      .eq('user_id', currentUser.id)
-      .order('saved_at', { ascending: false });
-      
-    const { data: goals, error: goalsError } = await supabase
-      .from('goals')
-      .select('*')
-      .eq('user_id', currentUser.id)
-      .order('created_at', { ascending: false });
-    
-    if (notesError) throw notesError;
-    if (linksError) throw linksError;
-    if (goalsError) throw goalsError;
-    
-    S.notes = notes || [];
-    S.links = links || [];
-    S.goals = goals || [];
-    
-    console.log('✅ Data loaded from cloud');
-    
+    const [notesRes, linksRes, goalsRes] = await Promise.all([
+      supabase.from('notes').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
+      supabase.from('links').select('*').eq('user_id', currentUser.id).order('saved_at', { ascending: false }),
+      supabase.from('goals').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
+    ]);
+
+    if (notesRes.error) throw notesRes.error;
+    if (linksRes.error) throw linksRes.error;
+    if (goalsRes.error) throw goalsRes.error;
+
+    S.notes = (notesRes.data || []).map(dbRowToNote);
+    S.links = (linksRes.data || []).map(dbRowToLink);
+    S.goals = (goalsRes.data || []).map(dbRowToGoal);
+
+    // Always load these from localStorage (no cloud table for them)
+    S.reading = JSON.parse(localStorage.getItem('sv_reading') || '[]');
+    S.vision = JSON.parse(localStorage.getItem('sv_vision') || '[]');
+    S.notifications = JSON.parse(localStorage.getItem('sv_notifications') || '[]');
+    S.activity = JSON.parse(localStorage.getItem('sv_activity') || '[]');
+    S.idc = parseInt(localStorage.getItem('sv_idc') || '0');
+
+    // Keep localStorage in sync with cloud data
+    localStorage.setItem('sv_notes', JSON.stringify(S.notes));
+    localStorage.setItem('sv_links', JSON.stringify(S.links));
+    localStorage.setItem('sv_goals', JSON.stringify(S.goals));
+
+    console.log(`✅ Data loaded from cloud: ${S.notes.length} notes, ${S.links.length} links, ${S.goals.length} goals`);
   } catch (error) {
     console.error('Cloud load failed, using local:', error);
     loadFromLocal();
@@ -739,47 +773,148 @@ function loadFromLocal() {
   }
 }
 async function save() {
+  saveToLocal(); // Always persist locally as safety net
   if (isCloudSyncEnabled && currentUser) {
-    await saveToCloud();
-  } else {
-    saveToLocal();
+    saveToCloud().catch(e => console.error('Cloud save error:', e));
   }
+}
+
+function noteToDbRow(note) {
+  return {
+    id: note.id,
+    user_id: currentUser.id,
+    title: note.title || null,
+    content: note.content || null,
+    type: note.type || 'note',
+    style: note.style || 'regular',
+    color: note.color || 'purple',
+    tag: note.tag || 'note',
+    status: note.status || 'none',
+    priority: (note.priority && note.priority !== 'none') ? note.priority : 'medium',
+    pinned: note.pinned || false,
+    starred: note.starred || false,
+    has_tape: note.hasTape || false,
+    tape_color: note.tapeColor || null,
+    pin: note.pin || null,
+    items: note.items || null,
+    author: note.author || null,
+    pol_emoji: note.polEmoji || null,
+    doodle: note.doodle || null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function dbRowToNote(row) {
+  return {
+    id: row.id,
+    type: row.type,
+    style: row.style,
+    title: row.title,
+    color: row.color,
+    tag: row.tag,
+    status: row.status,
+    priority: row.priority,
+    pinned: row.pinned,
+    starred: row.starred,
+    archived: row.archived || false,
+    hasTape: row.has_tape || false,
+    tapeColor: row.tape_color || null,
+    pin: row.pin || null,
+    content: row.content || null,
+    items: row.items || null,
+    author: row.author || null,
+    polEmoji: row.pol_emoji || null,
+    doodle: row.doodle || null,
+    created: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+  };
+}
+
+function linkToDbRow(link) {
+  return {
+    id: link.id,
+    user_id: currentUser.id,
+    url: link.url,
+    title: link.title,
+    host: link.host,
+    favicon: link.favicon || null,
+    tags: link.tags || [],
+    reading_status: link.readingStatus || link.reading_status || 'unread',
+    is_favorite: link.isFavorite || link.is_favorite || false,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function dbRowToLink(row) {
+  return {
+    id: row.id,
+    url: row.url,
+    title: row.title,
+    host: row.host,
+    favicon: row.favicon || null,
+    tags: row.tags || [],
+    readingStatus: row.reading_status || 'unread',
+    isFavorite: row.is_favorite || false,
+    savedAt: row.saved_at ? new Date(row.saved_at).getTime() : Date.now(),
+  };
+}
+
+function goalToDbRow(goal) {
+  return {
+    id: goal.id,
+    user_id: currentUser.id,
+    title: goal.title,
+    description: goal.description || null,
+    category: goal.category || 'personal',
+    type: goal.type || 'short-term',
+    priority: goal.priority || 'medium',
+    status: goal.status || 'active',
+    progress: goal.progress || 0,
+    target_date: goal.deadline || goal.target_date || null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function dbRowToGoal(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description || null,
+    category: row.category || 'personal',
+    type: row.type || 'short-term',
+    priority: row.priority || 'medium',
+    status: row.status || 'active',
+    progress: row.progress || 0,
+    deadline: row.target_date || null,
+    created: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+  };
 }
 
 async function saveToCloud() {
   try {
-    // Save notes to cloud
-    for (const note of S.notes) {
-      await supabase.from('notes').upsert({
-        ...note,
-        user_id: currentUser.id,
-        updated_at: new Date().toISOString()
-      });
+    if (S.notes.length > 0) {
+      const { error: notesError } = await supabase.from('notes').upsert(
+        S.notes.map(noteToDbRow), { onConflict: 'id' }
+      );
+      if (notesError) console.error('Notes cloud save error:', notesError);
     }
-    
-    // Save links to cloud
-    for (const link of S.links) {
-      await supabase.from('links').upsert({
-        ...link,
-        user_id: currentUser.id,
-        updated_at: new Date().toISOString()
-      });
+
+    if (S.links.length > 0) {
+      const { error: linksError } = await supabase.from('links').upsert(
+        S.links.map(linkToDbRow), { onConflict: 'id' }
+      );
+      if (linksError) console.error('Links cloud save error:', linksError);
     }
-    
-    // Save goals to cloud
-    for (const goal of S.goals) {
-      await supabase.from('goals').upsert({
-        ...goal,
-        user_id: currentUser.id,
-        updated_at: new Date().toISOString()
-      });
+
+    if (S.goals.length > 0) {
+      const { error: goalsError } = await supabase.from('goals').upsert(
+        S.goals.map(goalToDbRow), { onConflict: 'id' }
+      );
+      if (goalsError) console.error('Goals cloud save error:', goalsError);
     }
-    
+
     console.log('✅ Data saved to cloud');
-    
   } catch (error) {
-    console.error('Cloud save failed, saving locally:', error);
-    saveToLocal();
+    console.error('Cloud save failed:', error);
   }
 }
 
@@ -794,10 +929,9 @@ function saveToLocal() {
   localStorage.setItem('sv_idc', String(S.idc));
 }
 function saveLinks() {
+  localStorage.setItem('sv_links', JSON.stringify(S.links));
   if (isCloudSyncEnabled && currentUser) {
-    saveToCloud();
-  } else {
-    localStorage.setItem('sv_links', JSON.stringify(S.links));
+    saveToCloud().catch(e => console.error('Cloud save error:', e));
   }
 }
 
@@ -806,7 +940,7 @@ function saveLinks() {
 ══════════════════════════════════════ */
 function createGoal(goalData) {
   const goal = {
-    id: 'g' + Date.now(),
+    id: generateUUID(),
     title: goalData.title || '',
     description: goalData.description || '',
     category: goalData.category || 'personal',
@@ -1190,11 +1324,8 @@ async function handleSignOut() {
     if (supabase && currentUser) {
       await supabase.auth.signOut();
     }
-    // Clear stored session so extension shows login overlay again
+    // Clear stored session only — keep localStorage data intact
     await chrome.storage.local.remove('supabase_session');
-    localStorage.removeItem('sv_notes');
-    localStorage.removeItem('sv_links');
-    localStorage.removeItem('sv_idc');
     window.location.reload();
   } catch (error) {
     console.error('Sign out error:', error);
@@ -1755,7 +1886,7 @@ function toggleCheck(nid, idx) {
 function addNote(data) {
   S.idc++;
   const note = {
-    id: 'n' + S.idc,
+    id: generateUUID(),
     type: data.type || 'note',
     style: 'regular',
     title: data.title || null,
@@ -2059,7 +2190,7 @@ function saveLink(url, title, favicon) {
   try { new URL(url); } catch { toast('Invalid URL'); return; }
   const host = new URL(url).hostname;
   S.links.unshift({
-    id: 'l' + Date.now(),
+    id: generateUUID(),
     url, title: title || host.replace('www.',''),
     host,
     favicon: favicon || `https://www.google.com/s2/favicons?sz=64&domain=${host}`,
