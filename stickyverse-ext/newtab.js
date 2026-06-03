@@ -60,6 +60,7 @@ function generateUUID() {
 /* ══════════════════════════════════════
    STATE
 ══════════════════════════════════════ */
+let supabaseInitializing = false;
 let S = {
   notes: [],
   links: [],
@@ -267,10 +268,319 @@ document.addEventListener('DOMContentLoaded', async () => {
   applyWallpaper();
   updateLinkBadge();
   setupNoteCanvas();
+  
+  // Setup Quick Capture - global spacebar shortcut
+  setupQuickCapture();
+});
+
+/* ══════════════════════════════════════
+   GOAL EVENT DELEGATION
+══════════════════════════════════════ */
+function setupGoalEventDelegation() {
+  // Handle goal edit button clicks
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.goal-edit-btn')) {
+      const btn = e.target.closest('.goal-edit-btn');
+      const goalId = btn.dataset.goalId;
+      if (goalId) editGoal(goalId);
+      return;
+    }
+    
+    if (e.target.closest('.goal-delete-btn')) {
+      const btn = e.target.closest('.goal-delete-btn');
+      const goalId = btn.dataset.goalId;
+      if (goalId) deleteGoal(goalId);
+      return;
+    }
+    
+    if (e.target.closest('.progress-btn')) {
+      const btn = e.target.closest('.progress-btn');
+      const goalId = btn.dataset.goalId;
+      const progress = parseInt(btn.dataset.progress);
+      if (goalId && !isNaN(progress)) {
+        updateGoalProgress(goalId, progress);
+      }
+      return;
+    }
+  });
+}
+
+/* ══════════════════════════════════════
+   QUICK CAPTURE
+══════════════════════════════════════ */
+let quickCaptureActive = false;
+
+function setupQuickCapture() {
+  document.addEventListener('keydown', (e) => {
+    // Only trigger on spacebar when not typing in an input
+    if (e.code === 'Space' && !quickCaptureActive && !isInputFocused(e)) {
+      e.preventDefault();
+      showQuickCapture();
+    }
+    
+    // Escape to dismiss Quick Capture
+    if (e.code === 'Escape' && quickCaptureActive) {
+      hideQuickCapture();
+    }
+  });
+}
+
+function isInputFocused(e) {
+  const activeElement = document.activeElement;
+  return activeElement && (
+    activeElement.tagName === 'INPUT' ||
+    activeElement.tagName === 'TEXTAREA' ||
+    activeElement.contentEditable === 'true' ||
+    activeElement.classList.contains('ql-editor') ||
+    activeElement.classList.contains('modal-input')
+  );
+}
+
+function showQuickCapture() {
+  if (quickCaptureActive) return;
+  quickCaptureActive = true;
+  
+  // Create overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'quick-capture-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+  `;
+  
+  // Create input container
+  const container = document.createElement('div');
+  container.style.cssText = `
+    background: var(--theme-body, #0C0A1E);
+    border: 2px solid var(--theme-accent, #A78BFA);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 90%;
+    animation: slideUp 0.3s ease;
+  `;
+  
+  // Create input
+  const input = document.createElement('textarea');
+  input.id = 'quick-capture-input';
+  input.placeholder = 'Type your thought...';
+  input.style.cssText = `
+    width: 100%;
+    min-height: 60px;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--theme-text, #ffffff);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1.1rem;
+    line-height: 1.5;
+    resize: vertical;
+    padding: 0;
+    margin: 0;
+  `;
+  
+  // Create hint
+  const hint = document.createElement('div');
+  hint.style.cssText = `
+    color: var(--theme-text, rgba(255,255,255,0.5));
+    font-size: 0.85rem;
+    margin-top: 12px;
+    text-align: center;
+  `;
+  hint.textContent = 'Press Enter to save • Escape to cancel';
+  
+  container.appendChild(input);
+  container.appendChild(hint);
+  overlay.appendChild(container);
+  document.body.appendChild(overlay);
+  
+  // Focus input
+  setTimeout(() => input.focus(), 100);
+  
+  // Handle Enter key to save
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      const content = input.value.trim();
+      if (content) {
+        createQuickNote(content);
+        hideQuickCapture();
+      }
+    }
+  });
+  
+  // Click outside to dismiss
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      hideQuickCapture();
+    }
+  });
+}
+
+function hideQuickCapture() {
+  const overlay = document.getElementById('quick-capture-overlay');
+  if (overlay) {
+    overlay.style.animation = 'fadeOut 0.2s ease';
+    setTimeout(() => overlay.remove(), 200);
+  }
+  quickCaptureActive = false;
+}
+
+function createQuickNote(content) {
+  // Create a quick note with random color
+  const colors = ['purple', 'yellow', 'pink', 'green', 'blue', 'cream'];
+  const randomColor = colors[Math.floor(Math.random() * colors.length)];
+  
+  const noteData = {
+    type: 'note',
+    title: null,
+    content: content,
+    color: randomColor,
+    tag: 'note',
+    status: 'none',
+    priority: 'none'
+  };
+  
+  addNote(noteData);
+  save();
+  renderAll();
+  
+  // Show success feedback
+  toast('💭 Quick note captured!');
+  
+  // Add a subtle animation to the new note
+  setTimeout(() => {
+    const newNoteElement = document.querySelector(`[data-note-id="${S.notes[0].id}"]`);
+    if (newNoteElement) {
+      newNoteElement.style.animation = 'pulse 0.6s ease';
+      setTimeout(() => {
+        newNoteElement.style.animation = '';
+      }, 600);
+    }
+  }, 100);
+}
+
+// Add CSS animations for Quick Capture
+const quickCaptureStyles = document.createElement('style');
+quickCaptureStyles.textContent = `
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  @keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  
+  @keyframes slideUp {
+    from { 
+      opacity: 0;
+      transform: translateY(20px) scale(0.95);
+    }
+    to { 
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+  
+  #quick-capture-overlay {
+    font-family: 'DM Sans', sans-serif;
+  }
+  
+  #quick-capture-input::placeholder {
+    color: var(--theme-text, rgba(255,255,255,0.4));
+  }
+  
+  #quick-capture-input:focus {
+    outline: none;
+  }
+`;
+document.head.appendChild(quickCaptureStyles);
+
+// Start the application
+(async () => {
+  console.log('🚀 StickyVerse starting...');
+  
+  if (window.location.protocol === 'chrome-extension:') {
+    console.log('✅ StickyVerse loaded as new tab override');
+  } else {
+    console.warn('⚠️ StickyVerse not running in extension context');
+  }
+  
+  // Check if user needs to login first
+  const needsAuth = await checkAuthAndRedirect();
+  if (needsAuth) {
+    // Show full-screen login overlay — block everything behind it
+    document.body.style.overflow = 'hidden';
+    applyTheme(S.theme, false);
+    showLoginRequiredOverlay();
+    return; // Do NOT render dashboard at all
+  }
+  
+  // Initialize Supabase and check authentication
+  await initializeAuthAndSync();
+  
+  // Load data (local or cloud)
+  await loadData();
+  
+  // Setup UI components
+  setupNav();
+  setupCmdBar();
+  setupFilterTabs();
+  setupModal();
+  setupSearch();
+  setupLinks();
+  setupSettings();
+  setupWidgets();
+  setupDropZone();
+  setupBottomBar();
+  setupReadingList();
+  setupVisionBoard();
+  buildThemesGrid();
+  buildColorPicker();
+  startClock();
+  updateStreak();
+  rotateSidebarQuote();
+  rotateRpQuote();
+  buildQuoteDots();
+  renderAll();
+  applyTheme(S.theme, false);
+  applyWallpaper();
+  updateLinkBadge();
+  setupNoteCanvas();
+  
+  // Setup Quick Capture - global spacebar shortcut
+  setupQuickCapture();
+  
+  // Setup goal event delegation
+  setupGoalEventDelegation();
+  
+  // Setup new components
+  setupDailyFocus();
+  setupTemplates();
+  updateWorkStats();
+  
   setupAuthUI();
   
   console.log('✅ StickyVerse initialization complete');
-});
+})();
 
 /* ══════════════════════════════════════
    AUTHENTICATION & SYNC
@@ -280,17 +590,30 @@ let currentUser = null;
 let isCloudSyncEnabled = false;
 
 async function initializeAuthAndSync() {
-  // Load Supabase script locally
-  if (typeof window.supabase === 'undefined') {
-    await loadSupabaseScript();
+  // Prevent multiple initializations
+  if (supabaseInitializing) {
+    console.log('🔍 Supabase initialization already in progress, skipping...');
+    return;
   }
   
-  // Initialize Supabase client
+  supabaseInitializing = true;
+  
   try {
+    // Load Supabase script locally
+    if (typeof window.supabase === 'undefined') {
+      await loadSupabaseScript();
+    }
+  
+    // Initialize Supabase client
+    console.log('🔍 Initializing Supabase client...');
+    if (!window.supabase) {
+      throw new Error('Supabase not available after script loading');
+    }
     supabase = window.supabase.createClient(
       'https://kzhovelxcwychkmykirc.supabase.co',
       'sb_publishable_rhZmRguI0mEl7vpDaL5ivg_Bz_DZLPl'
     );
+    console.log('🔍 Supabase client created successfully');
 
     // First: restore session from chrome.storage (set by content script bridge)
     const stored = await chrome.storage.local.get(['supabase_session']);
@@ -333,14 +656,54 @@ async function initializeAuthAndSync() {
     
   } catch (error) {
     console.warn('Supabase initialization failed, using local storage:', error);
+  } finally {
+    supabaseInitializing = false;
   }
 }
 
 async function loadSupabaseScript() {
+  // Check if Supabase is already loaded or if script is already being loaded
+  if (typeof window.supabase !== 'undefined') {
+    console.log('🔍 Supabase already loaded');
+    return Promise.resolve();
+  }
+  
+  // Check if script tag already exists to prevent duplicate loading
+  const existingScript = document.querySelector('script[src*="supabase.min.js"]');
+  if (existingScript) {
+    console.log('🔍 Supabase script tag already exists, waiting for load...');
+    return new Promise((resolve) => {
+      if (typeof window.supabase !== 'undefined') {
+        resolve();
+      } else {
+        existingScript.onload = () => {
+          console.log('🔍 Existing Supabase script loaded');
+          resolve();
+        };
+        existingScript.onerror = () => {
+          console.error('🔍 Failed to load existing Supabase script');
+          resolve();
+        };
+        // Fallback timeout in case script already loaded
+        setTimeout(() => {
+          console.log('🔍 Supabase script fallback timeout');
+          resolve();
+        }, 1000);
+      }
+    });
+  }
+  
   return new Promise((resolve) => {
     const script = document.createElement('script');
     script.src = chrome.runtime.getURL('supabase.min.js');
-    script.onload = resolve;
+    script.onload = () => {
+      console.log('🔍 Supabase script loaded');
+      resolve();
+    };
+    script.onerror = () => {
+      console.error('🔍 Failed to load Supabase script');
+      resolve(); // Continue even if script fails
+    };
     document.head.appendChild(script);
   });
 }
@@ -773,9 +1136,20 @@ function loadFromLocal() {
   }
 }
 async function save() {
+  console.log('🔍 save() called');
+  console.log('🔍 Cloud sync enabled:', isCloudSyncEnabled);
+  console.log('🔍 Current user:', currentUser);
+  
   saveToLocal(); // Always persist locally as safety net
+  
   if (isCloudSyncEnabled && currentUser) {
-    saveToCloud().catch(e => console.error('Cloud save error:', e));
+    console.log('🔍 Attempting to save to cloud...');
+    saveToCloud().catch(e => {
+      console.error('🔍 Cloud save error:', e);
+      console.log('🔍 Falling back to local storage only');
+    });
+  } else {
+    console.log('🔍 Using local storage only');
   }
 }
 
@@ -1067,10 +1441,10 @@ function buildGoalCard(goal) {
           <div class="goal-priority" style="background: ${priorityColors[goal.priority] || priorityColors.medium}"></div>
         </div>
         <div class="goal-actions">
-          <button class="goal-edit-btn" onclick="editGoal('${goal.id}')">
+          <button class="goal-edit-btn" data-goal-id="${goal.id}">
             <i class="fa-solid fa-edit"></i>
           </button>
-          <button class="goal-delete-btn" onclick="deleteGoal('${goal.id}')">
+          <button class="goal-delete-btn" data-goal-id="${goal.id}">
             <i class="fa-solid fa-trash"></i>
           </button>
         </div>
@@ -1093,9 +1467,9 @@ function buildGoalCard(goal) {
           <div class="progress-fill" style="width: ${goal.progress}%; background: ${progressColor}"></div>
         </div>
         <div class="progress-controls">
-          <button class="progress-btn" onclick="updateGoalProgress('${goal.id}', ${Math.max(0, goal.progress - 10)})">-10%</button>
-          <button class="progress-btn" onclick="updateGoalProgress('${goal.id}', ${Math.min(100, goal.progress + 10)})">+10%</button>
-          ${goal.progress !== 100 ? `<button class="progress-btn complete-btn" onclick="updateGoalProgress('${goal.id}', 100)">Complete</button>` : ''}
+          <button class="progress-btn progress-decrease" data-goal-id="${goal.id}" data-progress="${Math.max(0, goal.progress - 10)}">-10%</button>
+          <button class="progress-btn progress-increase" data-goal-id="${goal.id}" data-progress="${Math.min(100, goal.progress + 10)}">+10%</button>
+          ${goal.progress !== 100 ? `<button class="progress-btn progress-complete" data-goal-id="${goal.id}" data-progress="100">Complete</button>` : ''}
         </div>
       </div>
     </div>
@@ -1314,8 +1688,13 @@ async function handleSignIn() {
   const d = document.getElementById('profile-dropdown');
   if (d) d.remove();
   // Show the full-screen login overlay (handles polling + auto-connect)
-  if (!document.getElementById('auth-overlay')) {
-    showLoginRequiredOverlay();
+  showLoginRequiredOverlay();
+}
+
+function showLoginRequiredOverlay() {
+  const overlay = document.getElementById('auth-overlay');
+  if (overlay) {
+    overlay.classList.remove('hidden');
   }
 }
 
@@ -1652,6 +2031,11 @@ function renderAll() {
   updateFavBadge();
   updateReadingBadge();
   updateGoalStats();
+  
+  // Render new components
+  renderStatusSections();
+  updateWorkStats();
+  
   // Re-render the currently active view so changes show immediately
   if (S.view === 'links') renderFullLinks();
   if (S.view === 'pinned') renderPinned();
@@ -1661,12 +2045,44 @@ function renderAll() {
    RENDER NOTES
 ══════════════════════════════════════ */
 function renderNotes() {
+  console.log('🔍 renderNotes called');
+  console.log('🔍 Current filter:', S.filter);
+  console.log('🔍 Total notes:', S.notes.length);
+  
   const masonry = document.getElementById('notes-masonry');
   masonry.innerHTML = '';
   const active = S.notes.filter(n => !n.archived);
-  const filtered = S.filter === 'all'
+  console.log('🔍 Active (non-archived) notes:', active.length);
+  
+  let filtered = S.filter === 'all'
     ? active
     : active.filter(n => n.tag === S.filter);
+  
+  console.log('🔍 Filtered notes count:', filtered.length);
+  console.log('🔍 Filtered notes:', filtered.map(n => ({ id: n.id, tag: n.tag, title: n.title })));
+  
+  // Apply sorting
+  if (S.sortBy && S.sortBy !== 'newest') {
+    filtered = [...filtered].sort((a, b) => {
+      switch (S.sortBy) {
+        case 'oldest':
+          return a.created - b.created;
+        case 'updated':
+          return (b.updated || b.created) - (a.updated || a.created);
+        case 'priority':
+          const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1, none: 0 };
+          return priorityOrder[b.priority || 'none'] - priorityOrder[a.priority || 'none'];
+        case 'alphabetical':
+          return (a.title || a.content || '').localeCompare(b.title || b.content || '');
+        default:
+          return b.created - a.created;
+      }
+    });
+  } else {
+    // Default: newest first
+    filtered.sort((a, b) => b.created - a.created);
+  }
+  
   if (!filtered.length) {
     masonry.innerHTML = '<div class="empty-msg" style="column-span:all"><strong>No notes here yet</strong>Click + to add your first note</div>';
     return;
@@ -1675,6 +2091,10 @@ function renderNotes() {
     const el = buildNoteEl(note, i);
     masonry.appendChild(el);
   });
+}
+
+function renderNoteCard(note, idx = 0) {
+  return buildNoteEl(note, idx).outerHTML;
 }
 
 function buildNoteEl(note, idx) {
@@ -1794,11 +2214,13 @@ document.addEventListener('click', e => {
   if (actionBtn) {
     const action = actionBtn.dataset.action;
     const id = actionBtn.dataset.id;
+    console.log('🔍 Note action clicked:', action, 'for note:', id);
     if (action === 'star') toggleStar(id);
     else if (action === 'pin') togglePin(id);
     else if (action === 'status') cycleStatus(id);
     else if (action === 'archive') toggleArchive(id);
     else if (action === 'del') deleteNote(id);
+    console.log('🔍 Note action handler completed');
     return;
   }
   // Checkbox
@@ -1861,11 +2283,19 @@ function toggleStar(id) {
   save(); renderAll();
 }
 function togglePin(id) {
+  console.log('🔍 togglePin called with id:', id);
   const note = S.notes.find(n => n.id === id);
-  if (!note) return;
+  if (!note) {
+    console.error('🔍 Note not found with id:', id);
+    return;
+  }
+  console.log('🔍 Note before toggle - pinned:', note.pinned);
   note.pinned = !note.pinned;
-  save(); renderAll();
+  console.log('🔍 Note after toggle - pinned:', note.pinned);
+  save(); 
+  renderAll();
   toast(note.pinned ? 'Pinned 📌' : 'Unpinned');
+  console.log('🔍 Pin toggle completed, renderAll called');
 }
 function deleteNote(id) {
   const note = S.notes.find(n => n.id === id);
@@ -1884,6 +2314,9 @@ function toggleCheck(nid, idx) {
   if (row) row.classList.toggle('done', note.items[idx].done);
 }
 function addNote(data) {
+  console.log('🔍 addNote called with data:', data);
+  console.log('🔍 Current notes count before:', S.notes.length);
+  
   S.idc++;
   const note = {
     id: generateUUID(),
@@ -1905,10 +2338,17 @@ function addNote(data) {
     created: Date.now(),
     doodle: null,
   };
+  
+  console.log('🔍 Created note object:', note);
   S.notes.unshift(note);
+  console.log('🔍 Notes count after adding:', S.notes.length);
+  
   logActivity('note_created', `Created note: "${note.title || note.content?.slice(0,30) || 'Untitled'}"`);
-  save(); renderAll();
+  save(); 
+  renderAll();
   toast('Note added ✨');
+  
+  console.log('🔍 Note creation completed');
 }
 
 /* ══════════════════════════════════════
@@ -1917,6 +2357,166 @@ function addNote(data) {
 function setupNav() {
   // handled via event delegation
 }
+
+/* ══════════════════════════════════════
+   DAILY FOCUS
+══════════════════════════════════════ */
+function setupDailyFocus() {
+  const focusText = document.getElementById('daily-focus-text');
+  const editBtn = document.getElementById('focus-edit-btn');
+  
+  // Load saved focus
+  const savedFocus = localStorage.getItem('sv_daily_focus');
+  if (savedFocus) {
+    focusText.textContent = savedFocus;
+  }
+  
+  editBtn.addEventListener('click', () => {
+    const newFocus = prompt('What is your main focus today?', focusText.textContent);
+    if (newFocus && newFocus.trim()) {
+      focusText.textContent = newFocus.trim();
+      localStorage.setItem('sv_daily_focus', newFocus.trim());
+      toast('Daily focus updated 🎯');
+    }
+  });
+}
+
+/* ══════════════════════════════════════
+   STATUS SECTIONS
+══════════════════════════════════════ */
+function renderStatusSections() {
+  const statusSections = document.getElementById('status-sections');
+  if (!statusSections) return;
+  
+  // Group notes by status
+  const statusGroups = {
+    'in-progress': [],
+    'none': [],
+    'completed': [],
+    'delayed': []
+  };
+  
+  S.notes.forEach(note => {
+    const status = note.status || 'none';
+    if (statusGroups[status]) {
+      statusGroups[status].push(note);
+    }
+  });
+  
+  // Render each status section
+  Object.keys(statusGroups).forEach(status => {
+    const container = document.getElementById(`status-notes-${status}`);
+    const count = document.getElementById(`status-count-${status}`);
+    
+    if (container && count) {
+      count.textContent = statusGroups[status].length;
+      container.innerHTML = statusGroups[status].map(note => renderNoteCard(note)).join('');
+    }
+  });
+}
+
+/* ══════════════════════════════════════
+   WORK STATS
+══════════════════════════════════════ */
+function updateWorkStats() {
+  const today = new Date().toDateString();
+  const todayNotes = S.notes.filter(note => 
+    new Date(note.created).toDateString() === today
+  );
+  const completedTasks = todayNotes.filter(note => 
+    note.status === 'completed' || (note.items && note.items.some(item => item.done))
+  );
+  const todayLinks = S.links.filter(link => 
+    new Date(link.savedAt || Date.now()).toDateString() === today
+  );
+  
+  // Update stats
+  document.getElementById('notes-created-today').textContent = todayNotes.length;
+  document.getElementById('tasks-completed').textContent = completedTasks.length;
+  document.getElementById('links-saved').textContent = todayLinks.length;
+  
+  // Update focus time (placeholder for now)
+  const focusHours = Math.floor(Math.random() * 6) + 1; // Mock data
+  document.getElementById('focus-time').textContent = `${focusHours}h`;
+}
+
+/* ══════════════════════════════════════
+   TEMPLATES
+══════════════════════════════════════ */
+function setupTemplates() {
+  const templateCards = document.querySelectorAll('.template-card');
+  
+  templateCards.forEach(card => {
+    card.addEventListener('click', () => {
+      const templateType = card.dataset.template;
+      createFromTemplate(templateType);
+    });
+  });
+}
+
+function createFromTemplate(type) {
+  const templates = {
+    meeting: {
+      title: 'Meeting Notes',
+      type: 'checklist',
+      items: [
+        { text: 'Attendees & Time', done: false },
+        { text: 'Agenda Items', done: false },
+        { text: 'Key Decisions', done: false },
+        { text: 'Action Items', done: false },
+        { text: 'Follow-up Tasks', done: false }
+      ]
+    },
+    project: {
+      title: 'Project Plan',
+      type: 'checklist',
+      items: [
+        { text: 'Define Objectives', done: false },
+        { text: 'Research & Planning', done: false },
+        { text: 'Create Timeline', done: false },
+        { text: 'Assign Tasks', done: false },
+        { text: 'Set Milestones', done: false }
+      ]
+    },
+    daily: {
+      title: 'Daily Review',
+      type: 'checklist',
+      items: [
+        { text: 'What went well today?', done: false },
+        { text: 'What could be improved?', done: false },
+        { text: 'Top priorities for tomorrow', done: false },
+        { text: 'Lessons learned', done: false }
+      ]
+    },
+    habit: {
+      title: 'Habit Tracker',
+      type: 'checklist',
+      items: [
+        { text: 'Morning Routine', done: false },
+        { text: 'Exercise', done: false },
+        { text: 'Reading', done: false },
+        { text: 'Meditation', done: false },
+        { text: 'Healthy Meals', done: false }
+      ]
+    },
+    learning: {
+      title: 'Learning Log',
+      content: 'What I learned today:\n\nKey concepts:\n- \n- \n- \n\nQuestions to explore:\n- \n- \n- '
+    },
+    gratitude: {
+      title: 'Gratitude Journal',
+      content: 'Today I am grateful for:\n\n1. \n2. \n3. \n\nSmall wins today:\n- \n- '
+    }
+  };
+  
+  const template = templates[type];
+  if (template) {
+    addNote(template);
+    save();
+    renderAll();
+    toast(`Created from ${type} template ✨`);
+  }
+}
 function showView(v) {
   S.view = v;
   document.querySelectorAll('.nav-item[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === v));
@@ -1924,49 +2524,72 @@ function showView(v) {
   const viewEl = document.getElementById('view-' + v);
   if (viewEl) viewEl.classList.add('active');
   const isHome = v === 'home';
-  document.getElementById('cmd-bar').style.display = isHome ? '' : 'none';
-  document.getElementById('filter-bar').style.display = isHome ? '' : 'none';
+  const searchBar = document.getElementById('search-bar');
+  if (searchBar) searchBar.style.display = isHome ? '' : 'none';
+  const filterBar = document.getElementById('filter-bar');
+  if (filterBar) filterBar.style.display = isHome ? '' : 'none';
   if (v === 'pinned') renderPinned();
   if (v === 'links') renderFullLinks();
   if (v === 'goals') renderGoals();
   if (v === 'themes') buildThemesGrid();
-  if (v === 'settings') document.getElementById('total-notes-desc').textContent = `${S.notes.length} notes saved`;
+  if (v === 'settings') {
+    const totalNotesDesc = document.getElementById('total-notes-desc');
+    if (totalNotesDesc) totalNotesDesc.textContent = `${S.notes.length} notes saved`;
+  }
 }
 
 /* ══════════════════════════════════════
    FILTER
 ══════════════════════════════════════ */
 function setupFilterTabs() {
-  // via event delegation
+  // Filter tabs functionality
+  document.querySelectorAll('.filter-tab').forEach(tab => {
+    tab.addEventListener('click', (e) => {
+      const filter = e.target.dataset.filter;
+      console.log('🔍 Filter tab clicked:', filter);
+      setFilter(filter);
+    });
+  });
+  
+  // Sort functionality
+  const sortSelect = document.getElementById('sort-select');
+  if (sortSelect) {
+    sortSelect.addEventListener('change', (e) => {
+      S.sortBy = e.target.value;
+      renderNotes();
+    });
+  }
 }
 function setFilter(f) {
+  console.log('🔍 setFilter called with:', f);
+  console.log('🔍 Previous filter:', S.filter);
   S.filter = f;
+  console.log('🔍 New filter set to:', S.filter);
   document.querySelectorAll('.filter-tab').forEach(b => b.classList.toggle('active', b.dataset.filter === f));
+  console.log('🔍 Filter tabs updated, calling renderNotes');
   renderNotes();
+  console.log('🔍 renderNotes completed');
 }
 
 /* ══════════════════════════════════════
    CMD BAR
 ══════════════════════════════════════ */
 function setupCmdBar() {
-  document.getElementById('cmd-add-btn').addEventListener('click', () => {
-    const t = document.getElementById('cmd-input').value.trim();
-    if (t) {
-      addNote({ type: 'note', content: t, color: 'yellow', tag: 'note' });
-      document.getElementById('cmd-input').value = '';
-    } else {
-      openModal('note');
-    }
+  // Setup search bar functionality
+  document.getElementById('search-add-btn').addEventListener('click', () => {
+    openModal('note');
   });
-  document.getElementById('cmd-input').addEventListener('keydown', e => {
+  
+  document.getElementById('search-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      const t = e.target.value.trim();
-      if (t) {
-        addNote({ type: 'note', content: t, color: 'yellow', tag: 'note' });
+      // Trigger search
+      const searchQuery = e.target.value.trim();
+      if (searchQuery) {
+        openSearch();
+        document.getElementById('search-input').value = searchQuery;
+        doSearch(searchQuery);
         e.target.value = '';
-      } else {
-        openModal('note');
       }
     }
     if (e.key === 'k' && e.metaKey) {
@@ -1974,6 +2597,7 @@ function setupCmdBar() {
       openModal('note');
     }
   });
+  
   document.getElementById('save-tab-topbtn').addEventListener('click', saveCurrentTab);
 }
 
@@ -2030,6 +2654,15 @@ function setupModal() {
     });
   });
 
+  // Color picker
+  document.querySelectorAll('.color-swatch').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.color-swatch').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      S.modalColor = b.dataset.color;
+    });
+  });
+
   // Add checklist item
   document.getElementById('add-checklist-item-btn').addEventListener('click', addChecklistItemUI);
 
@@ -2066,6 +2699,7 @@ function buildColorPicker() {
 
 function openModal(type) {
   S.modalType = type || 'note';
+  S.modalColor = 'purple'; // Initialize default color
   S.checklistItems = [];
   // Restore all note fields in case goal modal hid them
   document.getElementById('modal-title').style.display = '';
@@ -2085,6 +2719,7 @@ function openModal(type) {
   document.getElementById('checklist-items').innerHTML = '';
   document.querySelectorAll('.type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === type));
   document.querySelectorAll('.tag-btn').forEach(b => b.classList.toggle('active', b.dataset.tag === 'note'));
+  document.querySelectorAll('.color-swatch').forEach(b => b.classList.toggle('active', b.dataset.color === 'purple'));
   S.modalTag = 'note'; S.modalStatus = 'none'; S.modalPriority = 'none';
   document.getElementById('modal-status').value = 'none';
   document.querySelectorAll('.priority-btn').forEach(b => b.classList.toggle('active', b.dataset.priority === 'none'));
@@ -2097,8 +2732,20 @@ function closeModal() {
   document.getElementById('modal-overlay').classList.add('hidden');
 }
 function submitNote() {
+  console.log('🔍 submitNote called');
+  console.log('🔍 Modal state:', {
+    modalType: S.modalType,
+    modalColor: S.modalColor,
+    modalTag: S.modalTag,
+    modalStatus: S.modalStatus,
+    modalPriority: S.modalPriority
+  });
+  
   const title   = document.getElementById('modal-title').value.trim();
   const content = document.getElementById('modal-content').value.trim();
+  
+  console.log('🔍 Form values:', { title, content });
+  
   const data = {
     type: S.modalType,
     color: S.modalColor,
@@ -2107,18 +2754,29 @@ function submitNote() {
     priority: S.modalPriority,
     title: title || null,
   };
+  
+  console.log('🔍 Data prepared:', data);
+  
   if (S.modalType === 'checklist') {
     const inputs = document.querySelectorAll('#checklist-items .ci-row input[type="text"]');
     data.items = Array.from(inputs).map(i => ({ text: i.value.trim(), done: false })).filter(i => i.text);
-    if (!data.items.length && !title) return;
+    if (!data.items.length && !title) {
+      console.log('🔍 Checklist validation failed - no items or title');
+      return;
+    }
   } else if (S.modalType === 'quote') {
     const parts = content.split('\n');
     data.content = parts[0] || '';
     data.author  = parts[1]?.replace(/^[-–—]\s*/, '') || '';
   } else {
     data.content = content;
-    if (!content && !title) return;
+    if (!content && !title) {
+      console.log('🔍 Note validation failed - no content or title');
+      return;
+    }
   }
+  
+  console.log('🔍 Calling addNote with final data:', data);
   addNote(data);
   closeModal();
 }
@@ -2184,6 +2842,19 @@ function setupLinks() {
       if (v) { saveLink(v, '', ''); e.target.value = ''; }
     }
   });
+  
+  // Event delegation for link thumbnail images
+  document.addEventListener('error', (e) => {
+    if (e.target.classList.contains('lc-favicon') || e.target.classList.contains('lc-thumb-screenshot')) {
+      e.target.style.display = 'none';
+    }
+  }, true);
+  
+  document.addEventListener('load', (e) => {
+    if (e.target.classList.contains('lc-thumb-screenshot')) {
+      e.target.style.opacity = '1';
+    }
+  }, true);
 }
 function saveLink(url, title, favicon) {
   if (!url.startsWith('http')) url = 'https://' + url;
@@ -2196,7 +2867,11 @@ function saveLink(url, title, favicon) {
     favicon: favicon || `https://www.google.com/s2/favicons?sz=64&domain=${host}`,
     savedAt: Date.now()
   });
-  saveLinks(); renderAll(); toast('Link saved 🔗');
+  saveLinks(); 
+  // Only render links grid to avoid duplicate rendering
+  renderLinksGrid(document.getElementById('links-grid'), S.links, true);
+  updateLinkBadge();
+  toast('Link saved 🔗');
 }
 function getLinkPreviewUrl(url) {
   // thum.io — completely free website thumbnail, no API key, no signup
@@ -2226,14 +2901,12 @@ function buildLinkPreviewThumb(lk) {
   const previewUrl = getLinkPreviewUrl(lk.url, lk.host);
   return `<div class="lc-thumb" style="position:relative;overflow:hidden">
     <div class="lc-thumb-fallback" style="position:absolute;inset:0;background:${grad};display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px">
-      <img src="${lk.favicon}" onerror="this.style.display='none'" style="width:32px;height:32px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.3)" alt="">
+      <img src="${lk.favicon}" class="lc-favicon" style="width:32px;height:32px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.3)" alt="">
       <span style="font-size:11px;color:rgba(255,255,255,0.75);font-weight:500">${esc(lk.host.replace('www.',''))}</span>
     </div>
     <img class="lc-thumb-screenshot"
       src="${previewUrl}"
       style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.3s"
-      onerror="this.style.display='none'"
-      onload="this.style.opacity=1"
       alt=""
       loading="lazy">
     <span class="lc-site-em">${em}</span>
@@ -2292,8 +2965,19 @@ function updateLinkBadge() {
    PINNED VIEW
 ══════════════════════════════════════ */
 function renderPinned() {
+  console.log('🔍 renderPinned called');
+  console.log('🔍 Total notes:', S.notes.length);
+  console.log('🔍 Notes with pinned=true:', S.notes.filter(n => n.pinned).length);
+  
   const g = document.getElementById('pinned-grid');
+  if (!g) {
+    console.error('🔍 pinned-grid element not found');
+    return;
+  }
+  
   const pinned = S.notes.filter(n => n.pinned);
+  console.log('🔍 Pinned notes:', pinned);
+  
   if (!pinned.length) {
     g.innerHTML = '<div class="empty-msg"><strong>No pinned notes</strong>Pin a note by clicking 📌 on it</div>';
     return;
@@ -2307,6 +2991,7 @@ function renderPinned() {
       <div class="pc-time">${fmtTime(n.created)}</div>
     </div>`;
   }).join('');
+  console.log('🔍 Pinned grid updated with', pinned.length, 'notes');
 }
 
 /* ══════════════════════════════════════
@@ -2594,8 +3279,19 @@ function toast(msg) {
 function fmtFullDate(ts) {
   if (!ts) return '';
   const d = new Date(ts);
-  return d.toLocaleDateString([], {day:'numeric',month:'short',year:'numeric'}) + ' · ' +
-         d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  const now = new Date();
+  const diffDays = Math.floor((now - d) / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) {
+    return `Today, ${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+  } else if (diffDays === 1) {
+    return `Yesterday, ${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+  } else if (diffDays < 7) {
+    return `${d.toLocaleDateString([], {weekday:'short'})}, ${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+  } else {
+    return d.toLocaleDateString([], {day:'numeric',month:'short',year:'numeric'}) + ' · ' +
+           d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  }
 }
 function fmtTime(ts) {
   if (!ts) return '';
@@ -2605,7 +3301,7 @@ function fmtTime(ts) {
   if (d < 86400000) return Math.floor(d/3600000) + 'h ago';
   if (d < 172800000) return 'Yesterday';
   const dt = new Date(ts);
-  return `${dt.getDate()} ${dt.toLocaleString('default',{month:'short'})}, ${dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+  return `${dt.getDate()} ${dt.toLocaleString('default',{month:'short'})}`;
 }
 /* ══════════════════════════════════════
    NOTE CANVAS
