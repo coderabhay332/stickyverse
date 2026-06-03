@@ -464,8 +464,11 @@ input, textarea { font-family: 'Inter', system-ui, sans-serif; outline: none; bo
 .note-actions-row {
   display: flex;
   gap: 4px;
-  opacity: 0;
-  transition: opacity 0.18s;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.18s, visibility 0.18s;
+  background: rgba(255, 0, 0, 0.1);
+  border: 1px solid red;
 }
 .note-action {
   width: 24px;
@@ -486,7 +489,12 @@ input, textarea { font-family: 'Inter', system-ui, sans-serif; outline: none; bo
 .note-action.starred { color: #F59E0B; }
 .note-action.pinned-act { color: #EC4899; }
 
-.note-card:hover .note-actions-row { opacity: 1; }
+.note-card:hover .note-actions-row,
+.note-inner:hover + .note-footer .note-actions-row,
+.note-footer:hover .note-actions-row { 
+  opacity: 1 !important; 
+  visibility: visible !important;
+}
 
 /* ── MODAL ── */
 #modal-overlay {
@@ -1208,7 +1216,7 @@ input, textarea { font-family: 'Inter', system-ui, sans-serif; outline: none; bo
 .lc-favicon { width: 14px; height: 14px; border-radius: 3px; }
 .lc-host { font-size: 11px; color: var(--tx-muted); }
 .lc-menu { margin-left: auto; color: var(--tx-muted); font-size: 14px; }
-.lc-title { font-size: 12.5px; font-weight: 500; color: var(--tx-primary); line-height: 1.4; margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.lc-title { font-size: 12.5px; font-weight: 500; color: var(--tx-primary); line-height: 1.4; margin-bottom: 6px; display: -webkit-box; display: -moz-box; display: box; -webkit-line-clamp: 2; -moz-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; -moz-box-orient: vertical; box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
 .lc-saved { font-size: 9.5px; color: var(--tx-muted); margin-bottom: 2px; }
 .lc-url  { font-size: 10px; color: var(--tx-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px; opacity: 0.7; }
 .lc-actions { display: flex; gap: 5px; margin-top: 8px; }
