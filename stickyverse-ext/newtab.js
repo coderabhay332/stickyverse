@@ -2032,8 +2032,7 @@ function renderAll() {
   updateReadingBadge();
   updateGoalStats();
   
-  // Render new components
-  renderStatusSections();
+  // Update work stats
   updateWorkStats();
   
   // Re-render the currently active view so changes show immediately

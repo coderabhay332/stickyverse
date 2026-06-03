@@ -464,11 +464,9 @@ input, textarea { font-family: 'Inter', system-ui, sans-serif; outline: none; bo
 .note-actions-row {
   display: flex;
   gap: 4px;
-  opacity: 1;
-  visibility: visible;
+  opacity: 0;
+  visibility: hidden;
   transition: opacity 0.18s, visibility 0.18s;
-  background: rgba(255, 0, 0, 0.1);
-  border: 1px solid red;
 }
 .note-action {
   width: 24px;
@@ -1119,13 +1117,21 @@ input, textarea { font-family: 'Inter', system-ui, sans-serif; outline: none; bo
 /* ══════════════════════════════════════════
    NOTES MASONRY — Premium cards
 ══════════════════════════════════════════ */
-#notes-masonry { columns: 4; column-gap: 14px; padding: 10px 20px 6px; }
+#notes-masonry { 
+  display: grid; 
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
+  gap: 16px; 
+  padding: 10px 20px 6px; 
+}
 .note-card {
-  break-inside: avoid; page-break-inside: avoid;
-  display: inline-block; width: 100%; margin-bottom: 14px;
-  border-radius: var(--r-lg); position: relative; overflow: visible;
+  border-radius: var(--r-lg); 
+  position: relative; 
+  overflow: visible;
   transition: transform 0.22s cubic-bezier(0.34,1.2,0.64,1), box-shadow 0.22s;
   cursor: default;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px);
 }
 .note-card:hover { transform: translateY(-4px); }
 .note-inner { border-radius: var(--r-lg); overflow: hidden; padding: 15px; position: relative; cursor: pointer; }
