@@ -32,7 +32,7 @@ logs/
 *.pem
 *.zip
 build/
-dist/
+# dist/
 web-ext-artifacts/
 
 # Testing

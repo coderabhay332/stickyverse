@@ -2,8 +2,8 @@
    AUTHENTICATION HANDLER
 ══════════════════════════════════════ */
 
-// Initialize Supabase
-let supabase = initSupabase();
+// Initialize Supabase - initSupabase() sets up window.supabaseClient
+initSupabase();
 
 // DOM elements
 const googleBtn = document.getElementById('google-signin-btn');
@@ -15,18 +15,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     // Wait for Supabase to initialize (max 5 seconds)
     let attempts = 0;
-    while (!supabase && attempts < 50) {
+    while (!window.supabaseClient && attempts < 50) {
       await new Promise(resolve => setTimeout(resolve, 100));
       attempts++;
     }
     
-    if (!supabase) {
+    if (!window.supabaseClient) {
       showError('Failed to initialize. Please refresh the page.');
       return;
     }
     
     // Check for existing session
-    const { data: { session }, error } = await supabase.auth.getSession();
+    const { data: { session }, error } = await window.supabaseClient.auth.getSession();
     
     if (error) {
       console.error('Session check error:', error);
@@ -84,7 +84,7 @@ async function handleAuthCallback() {
     showLoading(true);
     
     // Get session from URL hash
-    const { data: { session }, error } = await supabase.auth.getSession();
+    const { data: { session }, error } = await window.supabaseClient.auth.getSession();
     
     if (error) {
       throw error;
@@ -115,7 +115,7 @@ async function handleAuthCallback() {
 
 async function createOrUpdateUserProfile(user) {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await window.supabaseClient
       .from('users')
       .upsert({
         id: user.id,

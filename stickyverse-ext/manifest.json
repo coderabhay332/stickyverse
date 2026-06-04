@@ -4,33 +4,57 @@
   "short_name": "StickyVerse",
   "description": "Your aesthetic digital workspace — notes, links, ideas & productivity",
   "version": "1.0.0",
-  "permissions": ["storage", "tabs", "activeTab", "scripting"],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": ["storage", "tabs", "activeTab"],
   "host_permissions": [
     "https://kzhovelxcwychkmykirc.supabase.co/*",
-    "http://localhost:3000/*",
     "https://peaceful-peony-58cb08.netlify.app/*",
-    "https://image.thum.io/*",
-    "https://www.google.com/s2/favicons*",
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*",
     "https://fonts.googleapis.com/*",
     "https://fonts.gstatic.com/*",
-    "https://cdnjs.cloudflare.com/*"
+    "https://api.dicebear.com/*",
+    "https://www.google.com/s2/favicons*"
   ],
   "action": {
-    "default_popup": "popup.html"
+    "default_title": "Open StickyVerse",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "dist/background.js"
   },
   "content_scripts": [
     {
-      "matches": ["http://localhost:3000/*", "https://peaceful-peony-58cb08.netlify.app/*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://peaceful-peony-58cb08.netlify.app/*",
+        "http://localhost:3000/*",
+        "http://127.0.0.1:3000/*"
+      ],
+      "js": ["dist/content.js"],
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["settings.html", "supabase-config.js", "tailwind.min.js", "supabase.min.js", "tailwind-config.js"],
+      "resources": [
+        "newtab.html",
+        "dist/newtab.js",
+        "dist/newtab.css",
+        "popup.html",
+        "dist/popup.js",
+        "supabase.min.js",
+        "icons/*"
+      ],
       "matches": ["<all_urls>"]
     }
   ]

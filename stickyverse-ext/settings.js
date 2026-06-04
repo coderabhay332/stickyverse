@@ -3,14 +3,14 @@
 ══════════════════════════════════════ */
 
 // Initialize
-let supabase = null;
+// Note: supabase is declared globally by supabase.min.js, using window.supabaseClient for client instance
 let currentUser = null;
 let pollInterval = null;
 let isConnected = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Initialize Supabase
-  supabase = initSupabase();
+  initSupabase();
   
   // Check for token in URL (from website redirect)
   const urlParams = new URLSearchParams(window.location.search);
@@ -134,7 +134,7 @@ async function checkSession() {
     const result = await chrome.storage.local.get(['supabase_session']);
     
     if (result.supabase_session) {
-      const { data, error } = await supabase.auth.setSession({
+      const { data, error } = await window.supabaseClient.auth.setSession({
         access_token: result.supabase_session.access_token,
         refresh_token: result.supabase_session.refresh_token
       });
@@ -199,7 +199,7 @@ async function handleConnectWithToken(token) {
     }
     
     // Set the session in Supabase
-    const { data, error } = await supabase.auth.setSession({
+    const { data, error } = await window.supabaseClient.auth.setSession({
       access_token: sessionData.access_token,
       refresh_token: sessionData.refresh_token
     });
@@ -235,7 +235,7 @@ async function handleDisconnect() {
   
   try {
     // Sign out from Supabase
-    await supabase.auth.signOut();
+    await window.supabaseClient.auth.signOut();
     
     // Clear from chrome storage
     await chrome.storage.local.remove(['supabase_session']);
@@ -274,12 +274,16 @@ async function handleForceSync() {
 
 function showLoggedInState() {
   // Hide connect section
-  document.getElementById('connect-section').classList.add('hidden');
+  const connectSection = document.getElementById('connect-section');
+  if (connectSection) connectSection.classList.add('hidden');
   
   // Show logged in sections
-  document.getElementById('logged-in-section').classList.remove('hidden');
-  document.getElementById('sync-section').classList.remove('hidden');
-  document.getElementById('actions-section').classList.remove('hidden');
+  const loggedInSection = document.getElementById('logged-in-section');
+  const syncSection = document.getElementById('sync-section');
+  const actionsSection = document.getElementById('actions-section');
+  if (loggedInSection) loggedInSection.classList.remove('hidden');
+  if (syncSection) syncSection.classList.remove('hidden');
+  if (actionsSection) actionsSection.classList.remove('hidden');
   
   // Update user info
   if (currentUser) {
@@ -300,16 +304,24 @@ function showLoggedInState() {
 
 function showLoggedOutState() {
   // Show connect section
-  document.getElementById('connect-section').classList.remove('hidden');
+  const connectSection = document.getElementById('connect-section');
+  if (connectSection) connectSection.classList.remove('hidden');
   
   // Hide logged in sections
-  document.getElementById('logged-in-section').classList.add('hidden');
-  document.getElementById('sync-section').classList.add('hidden');
-  document.getElementById('actions-section').classList.add('hidden');
+  const loggedInSection = document.getElementById('logged-in-section');
+  const syncSection = document.getElementById('sync-section');
+  const actionsSection = document.getElementById('actions-section');
+  if (loggedInSection) loggedInSection.classList.add('hidden');
+  if (syncSection) syncSection.classList.add('hidden');
+  if (actionsSection) actionsSection.classList.add('hidden');
 }
 
 function showMessage(text, type) {
   const messageEl = document.getElementById('message');
+  if (!messageEl) {
+    console.log(`[settings] ${type || 'info'}: ${text}`);
+    return;
+  }
   messageEl.textContent = text;
   if (type === 'success') {
     messageEl.className = 'mt-3 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-sm text-green-300';
@@ -318,10 +330,11 @@ function showMessage(text, type) {
   } else {
     messageEl.className = 'mt-3 p-3 bg-white/10 border border-white/20 rounded-lg text-sm text-white/70';
   }
-  messageEl.classList.remove('hidden');
+  if (messageEl.classList) messageEl.classList.remove('hidden');
   
   // Auto-hide after 5 seconds
   setTimeout(() => {
+    if (!messageEl) return;
     messageEl.textContent = '';
     messageEl.className = 'hidden';
   }, 5000);

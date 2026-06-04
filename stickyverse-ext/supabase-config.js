@@ -18,11 +18,11 @@ const SUPABASE_CONFIG = {
 };
 
 // Initialize Supabase client
-let supabase = null;
+// Note: supabase is declared globally by supabase.min.js
 
 function initSupabase() {
-  if (typeof supabase !== 'undefined' && supabase) {
-    return supabase;
+  if (typeof window.supabaseClient !== 'undefined' && window.supabaseClient) {
+    return window.supabaseClient;
   }
 
   // Load Supabase script if not loaded
@@ -30,7 +30,7 @@ function initSupabase() {
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
     script.onload = () => {
-      supabase = window.supabase.createClient(
+      window.supabaseClient = window.supabase.createClient(
         SUPABASE_CONFIG.url,
         SUPABASE_CONFIG.anonKey,
         {
@@ -45,7 +45,7 @@ function initSupabase() {
     };
     document.head.appendChild(script);
   } else {
-    supabase = window.supabase.createClient(
+    window.supabaseClient = window.supabase.createClient(
       SUPABASE_CONFIG.url,
       SUPABASE_CONFIG.anonKey,
       {
@@ -58,13 +58,13 @@ function initSupabase() {
     );
   }
   
-  return supabase;
+  return window.supabaseClient;
 }
 
 // Authentication functions
 async function signInWithGoogle() {
   try {
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await window.supabaseClient.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: window.location.origin + '/dashboard.html'
@@ -81,7 +81,7 @@ async function signInWithGoogle() {
 
 async function signOut() {
   try {
-    const { error } = await supabase.auth.signOut();
+    const { error } = await window.supabaseClient.auth.signOut();
     if (error) throw error;
     return { success: true };
   } catch (error) {
@@ -92,7 +92,7 @@ async function signOut() {
 
 async function getCurrentUser() {
   try {
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const { data: { user }, error } = await window.supabaseClient.auth.getUser();
     if (error) throw error;
     return { success: true, user };
   } catch (error) {
@@ -102,7 +102,7 @@ async function getCurrentUser() {
 }
 
 async function onAuthStateChange(callback) {
-  return supabase.auth.onAuthStateChange(callback);
+  return window.supabaseClient.auth.onAuthStateChange(callback);
 }
 
 // Export for use in other files

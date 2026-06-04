@@ -585,7 +585,7 @@ document.head.appendChild(quickCaptureStyles);
 /* ══════════════════════════════════════
    AUTHENTICATION & SYNC
 ══════════════════════════════════════ */
-let supabase = null;
+// Note: supabase is declared globally by supabase.min.js
 let currentUser = null;
 let isCloudSyncEnabled = false;
 
@@ -609,7 +609,7 @@ async function initializeAuthAndSync() {
     if (!window.supabase) {
       throw new Error('Supabase not available after script loading');
     }
-    supabase = window.supabase.createClient(
+    window.supabaseClient = window.supabase.createClient(
       'https://kzhovelxcwychkmykirc.supabase.co',
       'sb_publishable_rhZmRguI0mEl7vpDaL5ivg_Bz_DZLPl'
     );
@@ -619,7 +619,7 @@ async function initializeAuthAndSync() {
     const stored = await chrome.storage.local.get(['supabase_session']);
     if (stored.supabase_session) {
       const { access_token, refresh_token } = stored.supabase_session;
-      const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
+      const { data, error } = await window.supabaseClient.auth.setSession({ access_token, refresh_token });
       if (!error && data.session) {
         currentUser = data.session.user;
         isCloudSyncEnabled = true;
@@ -628,7 +628,7 @@ async function initializeAuthAndSync() {
       }
     } else {
       // Fallback: check Supabase directly
-      const { data: { session }, error } = await supabase.auth.getSession();
+      const { data: { session }, error } = await window.supabaseClient.auth.getSession();
       if (session && !error) {
         currentUser = session.user;
         isCloudSyncEnabled = true;
@@ -640,7 +640,7 @@ async function initializeAuthAndSync() {
     }
     
     // Listen for auth changes
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    window.supabaseClient.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
         currentUser = session.user;
         isCloudSyncEnabled = true;
@@ -712,7 +712,7 @@ async function setupRealtimeSync() {
   if (!isCloudSyncEnabled || !currentUser) return;
   
   // Subscribe to notes changes
-  const notesSubscription = supabase
+  const notesSubscription = window.supabaseClient
     .channel('notes_changes')
     .on('postgres_changes', 
       { event: '*', schema: 'public', table: 'notes', filter: `user_id=eq.${currentUser.id}` },
@@ -723,7 +723,7 @@ async function setupRealtimeSync() {
     .subscribe();
     
   // Subscribe to links changes
-  const linksSubscription = supabase
+  const linksSubscription = window.supabaseClient
     .channel('links_changes')
     .on('postgres_changes', 
       { event: '*', schema: 'public', table: 'links', filter: `user_id=eq.${currentUser.id}` },
@@ -1055,13 +1055,13 @@ async function migrateToCloud() {
     const localGoals = JSON.parse(localStorage.getItem('sv_goals') || '[]');
 
     if (localNotes.length > 0) {
-      await supabase.from('notes').upsert(localNotes.map(noteToDbRow), { onConflict: 'id' });
+      await window.supabaseClient.from('notes').upsert(localNotes.map(noteToDbRow), { onConflict: 'id' });
     }
     if (localLinks.length > 0) {
-      await supabase.from('links').upsert(localLinks.map(linkToDbRow), { onConflict: 'id' });
+      await window.supabaseClient.from('links').upsert(localLinks.map(linkToDbRow), { onConflict: 'id' });
     }
     if (localGoals.length > 0) {
-      await supabase.from('goals').upsert(localGoals.map(goalToDbRow), { onConflict: 'id' });
+      await window.supabaseClient.from('goals').upsert(localGoals.map(goalToDbRow), { onConflict: 'id' });
     }
     console.log('✅ Local data migrated to cloud');
   } catch (error) {
@@ -1085,9 +1085,9 @@ async function loadData() {
 async function loadFromCloud() {
   try {
     const [notesRes, linksRes, goalsRes] = await Promise.all([
-      supabase.from('notes').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
-      supabase.from('links').select('*').eq('user_id', currentUser.id).order('saved_at', { ascending: false }),
-      supabase.from('goals').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
+      window.supabaseClient.from('notes').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
+      window.supabaseClient.from('links').select('*').eq('user_id', currentUser.id).order('saved_at', { ascending: false }),
+      window.supabaseClient.from('goals').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
     ]);
 
     if (notesRes.error) throw notesRes.error;
@@ -1266,21 +1266,21 @@ function dbRowToGoal(row) {
 async function saveToCloud() {
   try {
     if (S.notes.length > 0) {
-      const { error: notesError } = await supabase.from('notes').upsert(
+      const { error: notesError } = await window.supabaseClient.from('notes').upsert(
         S.notes.map(noteToDbRow), { onConflict: 'id' }
       );
       if (notesError) console.error('Notes cloud save error:', notesError);
     }
 
     if (S.links.length > 0) {
-      const { error: linksError } = await supabase.from('links').upsert(
+      const { error: linksError } = await window.supabaseClient.from('links').upsert(
         S.links.map(linkToDbRow), { onConflict: 'id' }
       );
       if (linksError) console.error('Links cloud save error:', linksError);
     }
 
     if (S.goals.length > 0) {
-      const { error: goalsError } = await supabase.from('goals').upsert(
+      const { error: goalsError } = await window.supabaseClient.from('goals').upsert(
         S.goals.map(goalToDbRow), { onConflict: 'id' }
       );
       if (goalsError) console.error('Goals cloud save error:', goalsError);
@@ -1691,17 +1691,58 @@ async function handleSignIn() {
   showLoginRequiredOverlay();
 }
 
-function showLoginRequiredOverlay() {
-  const overlay = document.getElementById('auth-overlay');
-  if (overlay) {
-    overlay.classList.remove('hidden');
-  }
+// Listen for session changes from other tabs (via background storage)
+if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
+  chrome.storage.onChanged.addListener(async (changes, areaName) => {
+    if (areaName === 'local' && changes.supabase_session) {
+      console.log('🔄 Session storage changed, updating auth state...');
+      const session = changes.supabase_session.newValue;
+      if (session) {
+        // User logged in
+        if (window.supabaseClient) {
+          const { data, error } = await window.supabaseClient.auth.setSession({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token
+          });
+          if (!error && data.session) {
+            currentUser = data.session.user;
+            isCloudSyncEnabled = true;
+            await migrateToCloud();
+            await setupRealtimeSync();
+            await loadData();
+            
+            // Remove auth overlay if it is visible
+            const overlay = document.getElementById('auth-overlay');
+            if (overlay) {
+              overlay.remove();
+              document.body.style.overflow = '';
+            }
+            
+            setupAuthUI();
+            renderAll();
+            toast('✨ Connected to account!');
+          }
+        }
+      } else {
+        // User logged out
+        currentUser = null;
+        isCloudSyncEnabled = false;
+        if (window.supabaseClient) {
+          await window.supabaseClient.auth.signOut().catch(() => {});
+        }
+        await loadData(); // Load local data
+        setupAuthUI();
+        renderAll();
+        toast('🔓 Switched to local mode');
+      }
+    }
+  });
 }
 
 async function handleSignOut() {
   try {
-    if (supabase && currentUser) {
-      await supabase.auth.signOut();
+    if (window.supabaseClient && currentUser) {
+      await window.supabaseClient.auth.signOut();
     }
     // Clear stored session only — keep localStorage data intact
     await chrome.storage.local.remove('supabase_session');
@@ -3793,15 +3834,15 @@ async function uploadVisionImage(file) {
   // Compress first regardless of destination — max 800px wide, 80% quality
   const compressed = await compressImageFile(file, 800, 0.8);
 
-  if (supabase && currentUser) {
+  if (window.supabaseClient && currentUser) {
     try {
       const ext = file.name.split('.').pop() || 'jpg';
       const path = `${currentUser.id}/vision_${Date.now()}.${ext}`;
-      const { data, error } = await supabase.storage
+      const { data, error } = await window.supabaseClient.storage
         .from('vision-images')
         .upload(path, compressed, { contentType: file.type, upsert: false });
       if (error) throw error;
-      const { data: urlData } = supabase.storage.from('vision-images').getPublicUrl(data.path);
+      const { data: urlData } = window.supabaseClient.storage.from('vision-images').getPublicUrl(data.path);
       return { url: urlData.publicUrl, stored: 'supabase' };
     } catch (err) {
       console.warn('Supabase upload failed, falling back to base64:', err);
@@ -3836,10 +3877,10 @@ function compressImageFile(file, maxWidth, quality) {
 }
 
 async function deleteVisionImageFromSupabase(imageUrl) {
-  if (!supabase || !currentUser || !imageUrl || !imageUrl.includes('supabase')) return;
+  if (!window.supabaseClient || !currentUser || !imageUrl || !imageUrl.includes('supabase')) return;
   try {
     const path = imageUrl.split('/vision-images/')[1];
-    if (path) await supabase.storage.from('vision-images').remove([path]);
+    if (path) await window.supabaseClient.storage.from('vision-images').remove([path]);
   } catch (e) { /* silent */ }
 }
 
