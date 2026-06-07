@@ -234,7 +234,7 @@ export function Modal({ type, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && handleClose()}>
-      <div className="modal">
+      <div className={`modal font-${font}`}>
         <div className="modal-header">
           <h2>{editingNote ? '✏️ Edit' : '✨ New'} {tag.charAt(0).toUpperCase() + tag.slice(1)}</h2>
           <button className="modal-close" onClick={handleClose}>×</button>

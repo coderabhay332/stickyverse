@@ -48,6 +48,29 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [focusText, setFocusText] = useLocalStorage('sv_focus', 'Ship the StickyVerse V1 extension ✨');
   const [globalFont, setGlobalFont] = useLocalStorage('sv_global_font', 'sans');
+  const [waterReminder, setWaterReminder] = useLocalStorage('sv_water_reminder', false);
+  const [waterInterval, setWaterInterval] = useLocalStorage('sv_water_interval', 120);
+  const [toast, setToast] = useState(null);
+
+  // Listen for background alarm messages (like water reminder fallback toasts)
+  useEffect(() => {
+    const handleMessage = (message) => {
+      if (message.type === 'SHOW_WATER_TOAST') {
+        setToast({ title: message.title, body: message.body });
+        // Clear toast automatically after 8 seconds
+        setTimeout(() => {
+          setToast(prev => {
+            if (prev && prev.title === message.title) return null;
+            return prev;
+          });
+        }, 8000);
+      }
+    };
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+      chrome.runtime.onMessage.addListener(handleMessage);
+      return () => chrome.runtime.onMessage.removeListener(handleMessage);
+    }
+  }, []);
 
   // Apply theme CSS vars
   useEffect(() => {
@@ -118,6 +141,23 @@ export default function App() {
     return () => clearInterval(interval);
   }, [notes, user, supabase]);
 
+  // Sync water reminder settings to background service worker
+  useEffect(() => {
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+      chrome.runtime.sendMessage({
+        type: 'UPDATE_WATER_REMINDER',
+        enabled: waterReminder,
+        interval: Number(waterInterval)
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.warn('Background service worker not active yet:', chrome.runtime.lastError.message);
+        } else {
+          console.log('Water reminder sync response:', response);
+        }
+      });
+    }
+  }, [waterReminder, waterInterval]);
+
   // Spacebar key listener to create new note
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -187,6 +227,8 @@ export default function App() {
     editingNote, setEditingNote,
     searchQuery, setSearchQuery, focusText, setFocusText,
     globalFont, setGlobalFont,
+    waterReminder, setWaterReminder,
+    waterInterval, setWaterInterval,
     user, supabase, signIn, signOut,
     THEMES,
   };
@@ -290,6 +332,40 @@ export default function App() {
           <button className="fab-btn main" title="Add Note" onClick={() => { setEditingNote(null); setModalType('note'); setModalOpen(true); }}>+</button>
           <button className="fab-btn" title="Links" onClick={() => setView('links')}>🔗</button>
           <button className="fab-btn" title="Settings" onClick={() => setView('settings')}>⚙️</button>
+        </div>
+      )}
+
+      {toast && (
+        <div className="custom-toast" style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          width: '320px',
+          background: 'rgba(30, 27, 75, 0.95)',
+          border: '1px solid rgba(139, 92, 246, 0.3)',
+          borderRadius: '16px',
+          padding: '16px',
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 15px rgba(139, 92, 246, 0.2)',
+          display: 'flex',
+          gap: '12px',
+          zIndex: 100000,
+          color: '#fff',
+          backdropFilter: 'blur(10px)',
+          animation: 'slideIn 0.3s ease-out forwards'
+        }}>
+          <span style={{ fontSize: '24px', alignSelf: 'center' }}>💧</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '2px', color: '#fff' }}>{toast.title}</div>
+            <div style={{ fontSize: '12.5px', color: 'rgba(255, 255, 255, 0.7)', lineHeight: '1.4' }}>{toast.body}</div>
+          </div>
+          <button 
+            onClick={() => setToast(null)}
+            style={{
+              background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', 
+              fontSize: '18px', cursor: 'pointer', alignSelf: 'flex-start',
+              padding: '0 4px'
+            }}
+          >×</button>
         </div>
       )}
 

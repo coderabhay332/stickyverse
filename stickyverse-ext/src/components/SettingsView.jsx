@@ -2,7 +2,7 @@ import React from 'react';
 import { useAppContext } from '../App';
 
 export function SettingsView() {
-  const { theme, setTheme, THEMES, globalFont, setGlobalFont, user, signIn, signOut } = useAppContext();
+  const { theme, setTheme, THEMES, globalFont, setGlobalFont, waterReminder, setWaterReminder, waterInterval, setWaterInterval, user, signIn, signOut } = useAppContext();
 
   const clearData = () => {
     if (window.confirm('Clear all local data? This cannot be undone.')) {
@@ -69,6 +69,60 @@ export function SettingsView() {
               </button>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Reminders Section */}
+      <div className="settings-section">
+        <div className="settings-section-title">🔔 Background Reminders</div>
+        <div className="widget" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: '#fff', marginBottom: '2px' }}>💧 Water Reminder</div>
+              <div style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.45)' }}>Reminds you to stay hydrated across any browser tab you are on</div>
+            </div>
+            <button
+              onClick={() => setWaterReminder(v => !v)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.15)',
+                background: waterReminder ? '#10B981' : 'rgba(255,255,255,0.05)',
+                color: '#fff',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all var(--transition)'
+              }}
+            >
+              {waterReminder ? 'ON' : 'OFF'}
+            </button>
+          </div>
+
+          {waterReminder && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
+              <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.65)' }}>Remind me every:</span>
+              <select
+                className="glass-select"
+                value={waterInterval}
+                onChange={e => setWaterInterval(Number(e.target.value))}
+                style={{
+                  padding: '6px 12px',
+                  background: 'rgba(255,255,255,0.05)',
+                  color: '#fff',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '6px',
+                  outline: 'none'
+                }}
+              >
+                <option value="1">1 Minute (Testing)</option>
+                <option value="30">30 Minutes</option>
+                <option value="60">1 Hour</option>
+                <option value="120">2 Hours</option>
+                <option value="180">3 Hours</option>
+              </select>
+            </div>
+          )}
         </div>
       </div>
 

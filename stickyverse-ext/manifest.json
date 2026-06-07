@@ -10,7 +10,7 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["storage", "tabs", "activeTab"],
+  "permissions": ["storage", "tabs", "activeTab", "alarms", "notifications"],
   "host_permissions": [
     "https://kzhovelxcwychkmykirc.supabase.co/*",
     "https://peaceful-peony-58cb08.netlify.app/*",
@@ -36,9 +36,8 @@
   "content_scripts": [
     {
       "matches": [
-        "https://peaceful-peony-58cb08.netlify.app/*",
-        "http://localhost:3000/*",
-        "http://127.0.0.1:3000/*"
+        "http://*/*",
+        "https://*/*"
       ],
       "js": ["dist/content.js"],
       "run_at": "document_idle"

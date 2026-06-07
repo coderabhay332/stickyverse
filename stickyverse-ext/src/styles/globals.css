@@ -496,6 +496,10 @@ body {
   appearance: none;
   -webkit-appearance: none;
 }
+.glass-select option {
+  background: #1e1b4b;
+  color: #ffffff;
+}
 .glass-select:focus { border-color: rgba(124,58,237,0.5); }
 
 /* ─── Content Scroll ────────────────────────────────────────────────────────── */
@@ -1362,16 +1366,37 @@ body {
 }
 
 /* ─── Font Customization Classes ────────────────────────────────────────────── */
-body.body-font-sans, body.body-font-sans * { font-family: 'DM Sans', sans-serif !important; }
-body.body-font-serif, body.body-font-serif * { font-family: Georgia, serif !important; }
-body.body-font-handwriting, body.body-font-handwriting * { font-family: 'Caveat', cursive !important; }
-body.body-font-mono, body.body-font-mono * { font-family: 'Geist Mono', monospace !important; }
+/* Global font customization (only affects note cards and editor inputs) */
+.body-font-sans .note-card, .body-font-sans .note-card *,
+.body-font-sans .modal-input, .body-font-sans .modal-textarea { font-family: 'DM Sans', sans-serif !important; }
 
-/* Note-specific overrides */
-.font-default { /* inherits from body */ }
-.font-handwriting, .font-handwriting *,
-.font-handwriting .note-content, .font-handwriting .note-title { font-family: 'Caveat', cursive !important; font-size: 17.5px !important; }
-.font-mono, .font-mono *,
-.font-mono .note-content, .font-mono .note-title { font-family: 'Geist Mono', monospace !important; font-size: 12.5px !important; }
-.font-serif, .font-serif *,
-.font-serif .note-content, .font-serif .note-title { font-family: Georgia, serif !important; font-size: 13.5px !important; }
+.body-font-serif .note-card, .body-font-serif .note-card *,
+.body-font-serif .modal-input, .body-font-serif .modal-textarea { font-family: Georgia, serif !important; }
+
+.body-font-handwriting .note-card, .body-font-handwriting .note-card *,
+.body-font-handwriting .modal-input, .body-font-handwriting .modal-textarea { font-family: 'Caveat', cursive !important; }
+
+.body-font-mono .note-card, .body-font-mono .note-card *,
+.body-font-mono .modal-input, .body-font-mono .modal-textarea { font-family: 'Geist Mono', monospace !important; }
+
+/* Note-specific overrides (takes precedence over global setting on note cards and modals) */
+.note-card.font-handwriting, .note-card.font-handwriting *,
+.modal.font-handwriting .modal-input, .modal.font-handwriting .modal-textarea { font-family: 'Caveat', cursive !important; font-size: 17.5px !important; }
+
+.note-card.font-mono, .note-card.font-mono *,
+.modal.font-mono .modal-input, .modal.font-mono .modal-textarea { font-family: 'Geist Mono', monospace !important; font-size: 12.5px !important; }
+
+.note-card.font-serif, .note-card.font-serif *,
+.modal.font-serif .modal-input, .modal.font-serif .modal-textarea { font-family: Georgia, serif !important; font-size: 13.5px !important; }
+
+/* Custom Toast Keyframes */
+@keyframes slideIn {
+  from {
+    transform: translateY(60px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
