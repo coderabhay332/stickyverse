@@ -87,39 +87,25 @@ export function NoteCard({ note, index }) {
 
   const handleToggleChecklist = async (e, lineIndex) => {
     e.stopPropagation();
-    const isChecklistTag = note.tag === 'checklist';
     const contentLines = (note.content || '').split('\n');
-    
+    const isChecklistTag = note.tag === 'checklist' || note.tag === 'task';
     let checklistCount = 0;
+    
     const updatedLines = contentLines.map(line => {
-      const isChecklistItem = isChecklistTag 
-        ? line.trim() !== ''
-        : (line.startsWith('• ') || line.startsWith('- ') || line.startsWith('[ ]') || line.startsWith('[x]'));
-        
+      const isChecked = line.startsWith('[x]') || line.startsWith('[x] ');
+      const isUnchecked = line.startsWith('[ ]') || line.startsWith('[ ] ');
+      const isChecklistItem = isChecklistTag ? line.trim() !== '' : (isChecked || isUnchecked);
+      
       if (isChecklistItem) {
         if (checklistCount === lineIndex) {
           checklistCount++;
-          let cleanLine = line;
-          let wasChecked = false;
-          
-          if (line.startsWith('[x]')) {
-            cleanLine = line.substring(3).trim();
-            wasChecked = true;
-          } else if (line.startsWith('[ ]')) {
-            cleanLine = line.substring(3).trim();
-            wasChecked = false;
-          } else if (line.startsWith('• ')) {
-            cleanLine = line.substring(2).trim();
-            wasChecked = false;
-          } else if (line.startsWith('- ')) {
-            cleanLine = line.substring(2).trim();
-            wasChecked = false;
+          if (isChecked) {
+            const cleanText = line.replace(/^\[x\]\s?/, '');
+            return '[ ] ' + cleanText;
           } else {
-            cleanLine = line.trim();
-            wasChecked = false;
+            const cleanText = line.replace(/^\[ \]\s?/, '').replace(/^(•|-)\s?/, '');
+            return '[x] ' + cleanText;
           }
-          
-          return wasChecked ? '[ ] ' + cleanLine : '[x] ' + cleanLine;
         }
         checklistCount++;
       }
@@ -132,27 +118,72 @@ export function NoteCard({ note, index }) {
     if (user && supabase) await supabase.from('notes').update({ content: updated.content }).eq('id', note.id);
   };
 
-  // Parse content lines
-  const isChecklistTag = note.tag === 'checklist';
-  const lines = (note.content || '').split('\n');
-  
-  let checklistItems = [];
-  let regularContent = '';
-  
-  if (isChecklistTag) {
-    checklistItems = lines
-      .filter(l => l.trim() !== '')
-      .map(line => {
-        if (line.startsWith('[x]') || line.startsWith('[ ]') || line.startsWith('• ') || line.startsWith('- ')) {
-          return line;
-        }
-        return '[ ] ' + line;
-      });
-  } else {
-    checklistItems = lines.filter(l => l.startsWith('• ') || l.startsWith('- ') || l.startsWith('[ ]') || l.startsWith('[x]'));
-    const regularLines = lines.filter(l => !l.startsWith('• ') && !l.startsWith('- ') && !l.startsWith('[ ]') && !l.startsWith('[x]'));
-    regularContent = regularLines.join('\n').trim();
-  }
+  // Parse content lines in original order for rendering
+  const contentLines = (note.content || '').split('\n');
+  const isChecklistTag = note.tag === 'checklist' || note.tag === 'task';
+  let checklistCount = 0;
+
+  const renderedContentLines = contentLines.map((line, idx) => {
+    const isChecked = line.startsWith('[x]') || line.startsWith('[x] ');
+    const isUnchecked = line.startsWith('[ ]') || line.startsWith('[ ] ');
+    const isChecklistItem = isChecklistTag ? line.trim() !== '' : (isChecked || isUnchecked);
+
+    if (isChecklistItem) {
+      const currentChecklistIndex = checklistCount;
+      checklistCount++;
+
+      const cleanText = line
+        .replace(/^\[x\]\s?/, '')
+        .replace(/^\[ \]\s?/, '')
+        .replace(/^(•|-)\s?/, '');
+
+      return (
+        <div 
+          key={idx}
+          className={`checklist-item ${isChecked ? 'checked' : ''}`}
+          onClick={(e) => handleToggleChecklist(e, currentChecklistIndex)}
+          style={{ cursor: 'pointer', display: 'flex', gap: '10px', alignItems: 'center' }}
+        >
+          <span className="checkbox">✓</span>
+          <span>{cleanText || '\u00A0'}</span>
+        </div>
+      );
+    }
+
+    // Check if it's a bullet/dash list item
+    const isBulletItem = line.startsWith('•') || line.startsWith('• ') || line.startsWith('-') || line.startsWith('- ');
+    if (isBulletItem && !isChecklistTag) {
+      const cleanText = line.replace(/^(•|-)\s?/, '');
+      return (
+        <div 
+          key={idx} 
+          className="bullet-item" 
+          style={{ 
+            display: 'flex', 
+            gap: '10px', 
+            alignItems: 'center', 
+            margin: '6px 0', 
+            paddingLeft: '4px',
+            opacity: 0.85
+          }}
+        >
+          <span style={{ minWidth: '18px', textAlign: 'center', fontSize: '14.5px', fontWeight: 'bold' }}>-</span>
+          <span>{cleanText || '\u00A0'}</span>
+        </div>
+      );
+    }
+
+    // Otherwise, regular line of text
+    if (line.trim() === '') {
+      return <div key={idx} style={{ height: '8px' }} />;
+    }
+
+    return (
+      <div key={idx} className="note-text-line" style={{ margin: '2px 0' }}>
+        {line}
+      </div>
+    );
+  });
 
   const tapeColorClass = note.tapeColor || 'tape-yellow';
 
@@ -242,29 +273,10 @@ export function NoteCard({ note, index }) {
             )}
 
             {/* Regular content */}
-            {regularContent && (
-              <div className="note-content">{regularContent}</div>
-            )}
-
-            {/* Checklist items */}
-            {checklistItems.length > 0 && (
-              <ul className="checklist" style={{ marginTop: regularContent ? 10 : 0 }}>
-                {checklistItems.map((item, i) => {
-                  const isChecked = item.startsWith('[x]');
-                  const text = item.replace(/^(\[x\]|\[\s\]|\[ \]|•|-)\s?/, '').trim();
-                  return (
-                    <li 
-                      key={i} 
-                      className={`checklist-item ${isChecked ? 'checked' : ''}`}
-                      onClick={(e) => handleToggleChecklist(e, i)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <span className="checkbox">✓</span>
-                      <span>{text}</span>
-                    </li>
-                  );
-                })}
-              </ul>
+            {renderedContentLines.length > 0 && (
+              <div className="note-content" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                {renderedContentLines}
+              </div>
             )}
           </>
         )}
