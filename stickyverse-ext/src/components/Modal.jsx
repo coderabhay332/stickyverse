@@ -61,24 +61,26 @@ const TEMPLATES_MAP = {
 };
 
 export function Modal({ type, onClose }) {
-  const { setNotes, user, supabase, editingNote, setEditingNote } = useAppContext();
-  const [title, setTitle] = useState(editingNote ? editingNote.title || '' : '');
-  const [content, setContent] = useState(editingNote ? editingNote.content || '' : (type === 'checklist' || type === 'task') ? '[ ] ' : '');
-  const [color, setColor] = useState(editingNote ? editingNote.color : 'purple');
-  const [tag, setTag] = useState(editingNote ? editingNote.tag : 'note');
-  const [priority, setPriority] = useState(editingNote ? editingNote.priority : 'none');
-  const [font, setFont] = useState(editingNote ? editingNote.font || 'default' : 'default');
-  const [reminder, setReminder] = useState(editingNote ? editingNote.reminder || '' : '');
+  const { setNotes, user, supabase, editingNote, setEditingNote, premiumUnlocked, setShowPremiumModal } = useAppContext();
+  const [title, setTitle] = useState(editingNote && editingNote.title ? editingNote.title : '');
+  const [content, setContent] = useState(editingNote && editingNote.content ? editingNote.content : (type === 'checklist' || type === 'task') ? '[ ] ' : '');
+  const [color, setColor] = useState(editingNote && editingNote.color ? editingNote.color : 'purple');
+  const [tag, setTag] = useState(editingNote && editingNote.tag ? editingNote.tag : 'note');
+  const [priority, setPriority] = useState(editingNote && editingNote.priority ? editingNote.priority : 'none');
+  const [font, setFont] = useState(editingNote && editingNote.font ? editingNote.font : 'default');
+  const [reminder, setReminder] = useState(editingNote && editingNote.reminder ? editingNote.reminder : '');
   const [saving, setSaving] = useState(false);
 
   const [savedId, setSavedId] = useState(editingNote ? editingNote.id : null);
   const [hasCreated, setHasCreated] = useState(!!editingNote);
 
-  // Automatically insert checklist box for new empty notes when tag toggles
+  // Automatically insert checklist box or hyphen for new empty notes when tag toggles
   useEffect(() => {
     if (!editingNote && !title.trim() && !content.trim()) {
-      if (tag === 'checklist' || tag === 'task') {
+      if (tag === 'checklist') {
         setContent('[ ] ');
+      } else if (tag === 'task') {
+        setContent('- ');
       } else {
         setContent('');
       }
@@ -122,8 +124,10 @@ export function Modal({ type, onClose }) {
         prefix = '• ';
       } else if (currentLine.startsWith('- ')) {
         prefix = '- ';
-      } else if (tag === 'checklist' || tag === 'task') {
+      } else if (tag === 'checklist') {
         prefix = '[ ] ';
+      } else if (tag === 'task') {
+        prefix = '- ';
       }
 
       if (prefix) {
@@ -211,6 +215,18 @@ export function Modal({ type, onClose }) {
     }
     setEditingNote(null);
     onClose();
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm('Delete this note?')) {
+      const targetId = savedId;
+      setNotes(prev => prev.filter(n => n.id !== targetId));
+      if (user && supabase) {
+        await supabase.from('notes').delete().eq('id', targetId).catch(console.error);
+      }
+      setEditingNote(null);
+      onClose();
+    }
   };
 
   const handleSubmit = (e) => {
@@ -365,24 +381,54 @@ export function Modal({ type, onClose }) {
           {/* Font Selector */}
           <div className="form-group">
             <label>Font Style</label>
-            <div className="tag-selector">
-              {['default', 'handwriting', 'mono', 'serif'].map(f => (
+            <div className="tag-selector" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {[
+                { id: 'default', label: 'Sans', premium: false },
+                { id: 'handwriting', label: 'Cursive', premium: false },
+                { id: 'mono', label: 'Mono', premium: false },
+                { id: 'serif', label: 'Serif', premium: false },
+                { id: 'signature', label: '✒️ Signature 👑', premium: true },
+                { id: 'playful', label: '🎈 Playful 👑', premium: true },
+                { id: 'chalkboard', label: '✏️ Chalkboard 👑', premium: true },
+                { id: 'dyslexic', label: '👁️ Dyslexic 👑', premium: true },
+              ].map(f => (
                 <button
-                  key={f}
+                  key={f.id}
                   type="button"
-                  className={`tag-btn ${font === f ? 'active' : ''}`}
-                  onClick={() => setFont(f)}
+                  className={`tag-btn ${font === f.id ? 'active' : ''}`}
+                  onClick={() => {
+                    if (f.premium && !premiumUnlocked) {
+                      setShowPremiumModal(true);
+                    } else {
+                      setFont(f.id);
+                    }
+                  }}
+                  style={{
+                    fontSize: '12px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.1)'
+                  }}
                 >
-                  {f === 'default' ? '✍️ Sans' : f === 'handwriting' ? '🎨 Cursive' : f === 'mono' ? '💻 Mono' : '📖 Serif'}
+                  {f.label}
                 </button>
               ))}
             </div>
           </div>
 
           <div className="modal-actions" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              {hasCreated ? '✨ Saved automatically' : ''}
-            </span>
+            <div>
+              {savedId && (
+                <button
+                  type="button"
+                  className="btn-cancel"
+                  onClick={handleDelete}
+                  style={{ borderColor: 'rgba(239, 68, 68, 0.4)', color: '#f87171', padding: '6px 14px', borderRadius: '8px', fontSize: '12px' }}
+                >
+                  🗑️ Delete
+                </button>
+              )}
+            </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button type="button" className="btn-cancel" onClick={handleClose}>Cancel</button>
               <button type="submit" className="btn-submit">Done</button>

@@ -2,7 +2,7 @@ import React from 'react';
 import { useAppContext } from '../App';
 
 export function SettingsView() {
-  const { theme, setTheme, THEMES, globalFont, setGlobalFont, waterReminder, setWaterReminder, waterInterval, setWaterInterval, user, signIn, signOut } = useAppContext();
+  const { theme, setTheme, THEMES, globalFont, setGlobalFont, user, signIn, signOut, notes } = useAppContext();
 
   const clearData = () => {
     if (window.confirm('Clear all local data? This cannot be undone.')) {
@@ -11,6 +11,60 @@ export function SettingsView() {
       localStorage.removeItem('sv_goals');
       window.location.reload();
     }
+  };
+
+  const downloadCSV = () => {
+    if (!notes || notes.length === 0) {
+      alert("No notes to export!");
+      return;
+    }
+    
+    // Define headers
+    const headers = ["ID", "Title", "Content", "Type", "Status", "Priority", "Pinned", "Starred", "Archived", "Created Date", "Updated Date"];
+    
+    // Escape helper for CSV cells
+    const escapeCSV = (val) => {
+      if (val === null || val === undefined) return "";
+      let str = String(val);
+      // Replace double quotes with two double quotes
+      str = str.replace(/"/g, '""');
+      // If it contains double quotes, commas, newlines, wrap it in double quotes
+      if (/[",\n\r]/.test(str)) {
+        str = `"${str}"`;
+      }
+      return str;
+    };
+
+    const rows = notes.map(n => [
+      n.id,
+      n.title || "",
+      n.content || "",
+      n.tag || "note",
+      n.status || "none",
+      n.priority || "none",
+      n.pinned ? "Yes" : "No",
+      n.starred ? "Yes" : "No",
+      n.archived ? "Yes" : "No",
+      new Date(n.created).toISOString(),
+      new Date(n.updated).toISOString()
+    ]);
+    
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(r => r.map(escapeCSV).join(","))
+    ].join("\n");
+    
+    // Create download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `stickyverse_notes_export_${new Date().toISOString().slice(0,10)}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -72,60 +126,6 @@ export function SettingsView() {
         </div>
       </div>
 
-      {/* Reminders Section */}
-      <div className="settings-section">
-        <div className="settings-section-title">🔔 Background Reminders</div>
-        <div className="widget" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: '#fff', marginBottom: '2px' }}>💧 Water Reminder</div>
-              <div style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.45)' }}>Reminds you to stay hydrated across any browser tab you are on</div>
-            </div>
-            <button
-              onClick={() => setWaterReminder(v => !v)}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255,255,255,0.15)',
-                background: waterReminder ? '#10B981' : 'rgba(255,255,255,0.05)',
-                color: '#fff',
-                fontSize: '12.5px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all var(--transition)'
-              }}
-            >
-              {waterReminder ? 'ON' : 'OFF'}
-            </button>
-          </div>
-
-          {waterReminder && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
-              <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.65)' }}>Remind me every:</span>
-              <select
-                className="glass-select"
-                value={waterInterval}
-                onChange={e => setWaterInterval(Number(e.target.value))}
-                style={{
-                  padding: '6px 12px',
-                  background: 'rgba(255,255,255,0.05)',
-                  color: '#fff',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '6px',
-                  outline: 'none'
-                }}
-              >
-                <option value="1">1 Minute (Testing)</option>
-                <option value="30">30 Minutes</option>
-                <option value="60">1 Hour</option>
-                <option value="120">2 Hours</option>
-                <option value="180">3 Hours</option>
-              </select>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Account Section */}
       <div className="settings-section">
         <div className="settings-section-title">👤 Account</div>
@@ -166,6 +166,13 @@ export function SettingsView() {
             All notes are stored locally in your browser. Sign in to enable cloud backup and sync across devices.
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              className="topbar-btn"
+              onClick={downloadCSV}
+              style={{ borderColor: 'rgba(16,185,129,0.3)', color: '#a7f3d0' }}
+            >
+              📥 Download CSV Backup
+            </button>
             <button
               className="topbar-btn"
               onClick={clearData}

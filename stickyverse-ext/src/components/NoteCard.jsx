@@ -85,10 +85,16 @@ export function NoteCard({ note, index }) {
     if (user && supabase) await supabase.from('notes').update({ status: updated.status }).eq('id', note.id);
   };
 
+  const handleColorChange = async (colorName) => {
+    const updated = { ...note, color: colorName, updated: Date.now() };
+    setNotes(prev => prev.map(n => n.id === note.id ? updated : n));
+    if (user && supabase) await supabase.from('notes').update({ color: updated.color }).eq('id', note.id);
+  };
+
   const handleToggleChecklist = async (e, lineIndex) => {
     e.stopPropagation();
     const contentLines = (note.content || '').split('\n');
-    const isChecklistTag = note.tag === 'checklist' || note.tag === 'task';
+    const isChecklistTag = note.tag === 'checklist';
     let checklistCount = 0;
     
     const updatedLines = contentLines.map(line => {
@@ -120,7 +126,7 @@ export function NoteCard({ note, index }) {
 
   // Parse content lines in original order for rendering
   const contentLines = (note.content || '').split('\n');
-  const isChecklistTag = note.tag === 'checklist' || note.tag === 'task';
+  const isChecklistTag = note.tag === 'checklist';
   let checklistCount = 0;
 
   const renderedContentLines = contentLines.map((line, idx) => {
@@ -336,6 +342,37 @@ export function NoteCard({ note, index }) {
             <button className="note-action-btn" onClick={handleStar} title={note.starred ? 'Unstar' : 'Star'}>
               {note.starred ? '⭐' : '☆'}
             </button>
+            <div className="note-color-picker-wrapper" onClick={e => e.stopPropagation()}>
+              <button 
+                type="button" 
+                className="note-action-btn" 
+                title="Change Color"
+                onClick={e => e.preventDefault()}
+              >
+                🎨
+              </button>
+              <div className="note-color-palette-popover">
+                {Object.keys(COLOR_MAP).map(cName => (
+                  <div 
+                    key={cName}
+                    className="color-dot"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleColorChange(cName);
+                    }}
+                    style={{
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '50%',
+                      backgroundColor: COLOR_MAP[cName],
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      cursor: 'pointer'
+                    }}
+                    title={cName}
+                  />
+                ))}
+              </div>
+            </div>
             <button className="note-action-btn" onClick={handleCycleStatus} title="Cycle Status">🏷️</button>
             <button className="note-action-btn" onClick={handleArchive} title="Archive">📦</button>
             <button className="note-action-btn" onClick={handleDelete} title="Delete">🗑️</button>

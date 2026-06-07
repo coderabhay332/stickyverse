@@ -42,6 +42,9 @@ export default function App() {
   const [filter, setFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [theme, setTheme] = useLocalStorage('sv_theme', 'void');
+  const [premiumUnlocked, setPremiumUnlocked] = useLocalStorage('sv_premium_unlocked', false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [wallpaper, setWallpaper] = useLocalStorage('sv_wallpaper', 'none');
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState('note');
   const [editingNote, setEditingNote] = useState(null);
@@ -72,7 +75,7 @@ export default function App() {
     }
   }, []);
 
-  // Apply theme CSS vars
+  // Apply theme CSS vars & wallpaper
   useEffect(() => {
     const root = document.documentElement;
     const t = THEMES.find(t => t.id === theme) || THEMES[0];
@@ -84,9 +87,19 @@ export default function App() {
     root.style.setProperty('--theme-accent', t.accent);
     root.style.setProperty('--theme-text', t.text);
     root.style.setProperty('--theme-sidebar', t.sidebar);
-    document.body.style.background = t.bg;
+    
+    if (wallpaper && wallpaper !== 'none') {
+      document.body.style.backgroundImage = `linear-gradient(rgba(12, 10, 30, 0.45), rgba(12, 10, 30, 0.45)), url(${wallpaper})`;
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundPosition = 'center';
+      document.body.style.backgroundAttachment = 'fixed';
+      document.body.style.backgroundRepeat = 'no-repeat';
+    } else {
+      document.body.style.backgroundImage = 'none';
+      document.body.style.background = t.bg;
+    }
     document.body.style.color = t.text;
-  }, [theme]);
+  }, [theme, wallpaper]);
 
   // Apply global font CSS class to body
   useEffect(() => {
@@ -231,6 +244,10 @@ export default function App() {
     waterInterval, setWaterInterval,
     user, supabase, signIn, signOut,
     THEMES,
+    premiumUnlocked, setPremiumUnlocked,
+    showPremiumModal, setShowPremiumModal,
+    wallpaper, setWallpaper,
+    setToast
   };
 
   if (authLoading) {
@@ -371,6 +388,100 @@ export default function App() {
 
       {modalOpen && (
         <Modal type={modalType} onClose={() => setModalOpen(false)} />
+      )}
+
+      {showPremiumModal && (
+        <div className="modal-overlay" style={{ zIndex: 110000 }} onClick={e => e.target === e.currentTarget && setShowPremiumModal(false)}>
+          <div className="modal premium-modal" style={{
+            maxWidth: '450px',
+            background: 'linear-gradient(135deg, rgba(30, 27, 75, 0.98), rgba(15, 23, 42, 0.98))',
+            border: '1px solid rgba(139, 92, 246, 0.4)',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(139, 92, 246, 0.25)',
+            textAlign: 'center',
+            padding: '32px 24px',
+            position: 'relative'
+          }}>
+            <button 
+              className="modal-close" 
+              onClick={() => setShowPremiumModal(false)}
+              style={{ position: 'absolute', top: '16px', right: '16px', border: 'none', background: 'none', color: '#fff', fontSize: '24px', cursor: 'pointer' }}
+            >×</button>
+            <div style={{ fontSize: '54px', marginBottom: '16px' }}>👑</div>
+            <h2 style={{
+              fontFamily: 'Syne, sans-serif',
+              fontWeight: 800,
+              fontSize: '24px',
+              background: 'linear-gradient(135deg, #a78bfa, #f472b6)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              marginBottom: '10px'
+            }}>Unlock StickyVerse Premium</h2>
+            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, marginBottom: '24px' }}>
+              Take your productivity aesthetic to the next level. Support independent development and get permanent access to premium features!
+            </p>
+            
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              textAlign: 'left',
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.06)',
+              borderRadius: '12px',
+              padding: '16px',
+              marginBottom: '28px',
+              fontSize: '13px',
+              color: 'rgba(255,255,255,0.85)'
+            }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span>✨</span> <strong>4x Premium Fonts</strong> (Signature, Playful, Chalkboard, Dyslexic)
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span>🖼️</span> <strong>Aesthetic Wallpaper Backgrounds</strong> (Unsplash presets & Custom URLs)
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span>🔋</span> <strong>Unlimited Active Widgets</strong> & Custom Reminders
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span>☁️</span> <strong>Priority Cloud Sync</strong> & Data Backups
+              </div>
+            </div>
+
+            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#fff', marginBottom: '16px' }}>
+              $2.99 <span style={{ fontSize: '12px', fontWeight: 'normal', opacity: 0.6 }}>one-time purchase</span>
+            </div>
+
+            <button 
+              type="button"
+              onClick={() => {
+                setPremiumUnlocked(true);
+                setShowPremiumModal(false);
+                setToast({
+                  title: '👑 Premium Activated!',
+                  body: 'Thank you for upgrading to StickyVerse Premium! Enjoy all custom fonts and wallpapers.'
+                });
+              }}
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #7C3AED, #EC4899)',
+                color: '#fff',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                border: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 4px 20px rgba(236, 72, 153, 0.4)',
+                transition: 'all 0.2s',
+              }}
+            >
+              Upgrade Now ✨
+            </button>
+            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '12px' }}>
+              Secured with standard simulated Stripe checkout
+            </div>
+          </div>
+        </div>
       )}
     </AppContext.Provider>
   );
