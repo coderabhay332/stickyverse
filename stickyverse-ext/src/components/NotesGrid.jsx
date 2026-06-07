@@ -38,6 +38,10 @@ export function NotesGrid() {
         case 'updated':     return (b.updated || b.created) - (a.updated || a.created);
         case 'priority':    return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
         case 'alphabetical':return (a.title || '').localeCompare(b.title || '');
+        case 'status':
+          const statusOrder = { completed: 5, 'in-progress': 4, delayed: 3, waiting: 2, cancelled: 1, none: 0 };
+          return (statusOrder[b.status || 'none'] || 0) - (statusOrder[a.status || 'none'] || 0);
+        case 'category':    return (a.tag || '').localeCompare(b.tag || '');
         default:            return b.created - a.created;
       }
     });
@@ -115,9 +119,34 @@ export function NotesGrid() {
   };
 
   if (filtered.length === 0) {
+    const isBrandNew = notes.length === 0;
     return (
       <div>
-        <EmptyState message="No notes here yet" action="Click the + button to create your first note" />
+        {isBrandNew && (
+          <div className="onboarding-banner" style={{
+            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(236, 72, 153, 0.1) 100%)',
+            border: '1.5px dashed rgba(139, 92, 246, 0.35)',
+            borderRadius: '16px',
+            padding: '16px 20px',
+            marginBottom: '28px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            color: '#e8dfee',
+            fontSize: '13.5px',
+            boxShadow: '0 4px 15px -3px rgba(139, 92, 246, 0.1)'
+          }}>
+            <span style={{ fontSize: '24px' }}>🚀</span>
+            <div>
+              <strong style={{ color: '#fff', display: 'block', marginBottom: '2px', fontSize: '14.5px' }}>Welcome to StickyVerse!</strong>
+              Press <kbd style={{ background: 'rgba(255,255,255,0.15)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '11px', border: '1px solid rgba(255,255,255,0.25)', boxShadow: '0 1px 0 rgba(0,0,0,0.2)' }}>Spacebar</kbd> anywhere on this screen to instantly open the Create Note modal.
+            </div>
+          </div>
+        )}
+        <EmptyState 
+          message="No notes here yet" 
+          action={isBrandNew ? "Press Spacebar or click the + button to create your first note!" : "Click the + button to create your first note"} 
+        />
         
         {/* Quick Templates Row */}
         <div style={{ marginTop: 40, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 24 }}>

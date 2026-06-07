@@ -47,6 +47,7 @@ export default function App() {
   const [editingNote, setEditingNote] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [focusText, setFocusText] = useLocalStorage('sv_focus', 'Ship the StickyVerse V1 extension ✨');
+  const [globalFont, setGlobalFont] = useLocalStorage('sv_global_font', 'sans');
 
   // Apply theme CSS vars
   useEffect(() => {
@@ -63,6 +64,59 @@ export default function App() {
     document.body.style.background = t.bg;
     document.body.style.color = t.text;
   }, [theme]);
+
+  // Apply global font CSS class to body
+  useEffect(() => {
+    document.body.classList.remove('body-font-sans', 'body-font-serif', 'body-font-handwriting', 'body-font-mono');
+    document.body.classList.add(`body-font-${globalFont}`);
+  }, [globalFont]);
+
+  // Request notifications permission and start background scheduler for task reminders
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+
+    const checkReminders = () => {
+      const now = Date.now();
+      let hasUpdates = false;
+
+      const updated = notes.map(n => {
+        if (n.reminder && !n.reminderTriggered) {
+          const remTime = new Date(n.reminder).getTime();
+          if (remTime <= now) {
+            // Trigger browser notification
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification(`⏰ Reminder: ${n.title || 'StickyVerse Task'}`, {
+                body: n.content || 'Your scheduled reminder has arrived!',
+                icon: 'icons/icon32.png'
+              });
+            } else {
+              // Fallback
+              alert(`⏰ Reminder: ${n.title || 'StickyVerse Task'}\n\n${n.content || ''}`);
+            }
+            hasUpdates = true;
+            return { ...n, reminderTriggered: true };
+          }
+        }
+        return n;
+      });
+
+      if (hasUpdates) {
+        setNotes(updated);
+        // Find which note was triggered and update Supabase if signed in
+        const triggered = updated.find((n, i) => n.reminderTriggered && !notes[i].reminderTriggered);
+        if (triggered && user && supabase) {
+          supabase.from('notes').update({ reminderTriggered: true }).eq('id', triggered.id).catch(console.error);
+        }
+      }
+    };
+
+    const interval = setInterval(checkReminders, 10000); // check every 10s
+    return () => clearInterval(interval);
+  }, [notes, user, supabase]);
 
   // Spacebar key listener to create new note
   useEffect(() => {
@@ -132,6 +186,7 @@ export default function App() {
     theme, setTheme, modalOpen, setModalOpen, modalType, setModalType,
     editingNote, setEditingNote,
     searchQuery, setSearchQuery, focusText, setFocusText,
+    globalFont, setGlobalFont,
     user, supabase, signIn, signOut,
     THEMES,
   };
@@ -211,6 +266,8 @@ export default function App() {
                 <option value="oldest">Oldest First</option>
                 <option value="updated">Recently Updated</option>
                 <option value="priority">Priority</option>
+                <option value="status">Work Status</option>
+                <option value="category">Category</option>
                 <option value="alphabetical">Alphabetical</option>
               </select>
             </div>

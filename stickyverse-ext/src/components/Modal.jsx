@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../App';
 
 const TAG_COLORS = { note: 'purple', task: 'blue', checklist: 'blue', idea: 'yellow', quote: 'green', link: 'pink' };
@@ -15,56 +15,153 @@ const COLORS = [
 ];
 const PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'];
 
+const TEMPLATES_MAP = {
+  meeting: {
+    title: 'Meeting Notes 📝',
+    content: '• Attendees & Time\n• Agenda Items\n• Key Decisions\n• Action Items\n• Follow-up Tasks',
+    color: 'purple',
+    tag: 'task',
+    priority: 'none'
+  },
+  project: {
+    title: 'Project Plan 🚀',
+    content: '• Define Objectives\n• Research & Planning\n• Create Timeline\n• Assign Tasks\n• Set Milestones',
+    color: 'blue',
+    tag: 'task',
+    priority: 'medium'
+  },
+  daily: {
+    title: 'Daily Review ☀️',
+    content: '• What went well today?\n• What could be improved?\n• Top priorities for tomorrow\n• Lessons learned',
+    color: 'yellow',
+    tag: 'note',
+    priority: 'none'
+  },
+  habit: {
+    title: 'Habit Tracker ✅',
+    content: '• Morning Routine\n• Exercise\n• Reading\n• Meditation\n• Healthy Meals',
+    color: 'green',
+    tag: 'task',
+    priority: 'none'
+  },
+  learning: {
+    title: 'Learning Log 📚',
+    content: 'What I learned today:\n\nKey concepts:\n- \n- \n- \n\nQuestions to explore:\n- \n- \n- ',
+    color: 'orange',
+    tag: 'note',
+    priority: 'none'
+  },
+  gratitude: {
+    title: 'Gratitude Journal 🙏',
+    content: 'Today I am grateful for:\n\n1. \n2. \n3.\n\nSmall wins today:\n- \n- ',
+    color: 'pink',
+    tag: 'quote',
+    priority: 'none'
+  }
+};
+
 export function Modal({ type, onClose }) {
-  const { setNotes, setLinks, user, supabase, editingNote, setEditingNote } = useAppContext();
+  const { setNotes, user, supabase, editingNote, setEditingNote } = useAppContext();
   const [title, setTitle] = useState(editingNote ? editingNote.title || '' : '');
-  const [content, setContent] = useState(editingNote ? editingNote.content || '' : '');
+  const [content, setContent] = useState(editingNote ? editingNote.content || '' : (type === 'checklist' || type === 'task') ? '[ ] ' : '');
   const [color, setColor] = useState(editingNote ? editingNote.color : 'purple');
   const [tag, setTag] = useState(editingNote ? editingNote.tag : 'note');
   const [priority, setPriority] = useState(editingNote ? editingNote.priority : 'none');
+  const [font, setFont] = useState(editingNote ? editingNote.font || 'default' : 'default');
+  const [reminder, setReminder] = useState(editingNote ? editingNote.reminder || '' : '');
   const [saving, setSaving] = useState(false);
 
-  const handleClose = () => {
-    setEditingNote(null);
-    onClose();
+  const [savedId, setSavedId] = useState(editingNote ? editingNote.id : null);
+  const [hasCreated, setHasCreated] = useState(!!editingNote);
+
+  // Automatically insert checklist box for new empty notes when tag toggles
+  useEffect(() => {
+    if (!editingNote && !title.trim() && !content.trim()) {
+      if (tag === 'checklist' || tag === 'task') {
+        setContent('[ ] ');
+      } else {
+        setContent('');
+      }
+    }
+  }, [tag]);
+
+  // Handle smart lists (Space/Enter checkbox behaviors)
+  const handleTextareaKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      const textarea = e.currentTarget;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+
+      // Get current line
+      const beforeCursor = text.substring(0, start);
+      const afterCursor = text.substring(end);
+      const linesBefore = beforeCursor.split('\n');
+      const currentLine = linesBefore[linesBefore.length - 1];
+
+      // If hitting enter on an empty prefix, delete the prefix instead of making a new line
+      if (currentLine === '[ ] ' || currentLine === '[x] ' || currentLine === '• ' || currentLine === '- ') {
+        e.preventDefault();
+        const newText = text.substring(0, start - currentLine.length) + '\n' + afterCursor;
+        setContent(newText);
+        const newCursorPos = start - currentLine.length + 1;
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(newCursorPos, newCursorPos);
+        }, 0);
+        return;
+      }
+
+      // Check if current line has prefix to propagate
+      let prefix = '';
+      if (currentLine.startsWith('[x] ')) {
+        prefix = '[ ] ';
+      } else if (currentLine.startsWith('[ ] ')) {
+        prefix = '[ ] ';
+      } else if (currentLine.startsWith('• ')) {
+        prefix = '• ';
+      } else if (currentLine.startsWith('- ')) {
+        prefix = '- ';
+      } else if (tag === 'checklist' || tag === 'task') {
+        prefix = '[ ] ';
+      }
+
+      if (prefix) {
+        e.preventDefault();
+        const newText = beforeCursor + '\n' + prefix + afterCursor;
+        setContent(newText);
+
+        const newCursorPos = start + 1 + prefix.length;
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(newCursorPos, newCursorPos);
+        }, 0);
+      }
+    }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!title.trim() && !content.trim()) return;
-    setSaving(true);
+  // Autosave effect
+  useEffect(() => {
+    if (!hasCreated && !title.trim() && !content.trim()) return;
 
-    if (editingNote) {
-      const updatedNote = {
-        ...editingNote,
-        title: title.trim() || null,
-        content: content.trim(),
-        color, tag, priority,
-        updated: Date.now(),
-      };
+    let targetId = savedId;
+    let isNew = !hasCreated;
 
-      setNotes(prev => prev.map(n => n.id === editingNote.id ? updatedNote : n));
+    // Reset reminderTriggered if the reminder changes or is newly set
+    const isReminderChanged = editingNote ? editingNote.reminder !== reminder : reminder !== '';
 
-      if (user && supabase) {
-        try {
-          await supabase.from('notes').update({
-            title: updatedNote.title,
-            content: updatedNote.content,
-            color: updatedNote.color,
-            tag: updatedNote.tag,
-            priority: updatedNote.priority,
-            updated: updatedNote.updated,
-          }).eq('id', editingNote.id);
-        } catch (err) {
-          console.error(err);
-        }
-      }
-    } else {
+    if (isNew) {
+      targetId = `note_${Date.now()}_${Math.random().toString(36).substr(2,6)}`;
+      setSavedId(targetId);
+      setHasCreated(true);
+
       const newNote = {
-        id: `note_${Date.now()}_${Math.random().toString(36).substr(2,6)}`,
+        id: targetId,
         title: title.trim() || null,
         content: content.trim(),
-        color, tag, priority,
+        color, tag, priority, font,
+        reminder: reminder || null,
+        reminderTriggered: false,
         status: 'none',
         pinned: false, starred: false, archived: false,
         created: Date.now(), updated: Date.now(),
@@ -73,13 +170,66 @@ export function Modal({ type, onClose }) {
       setNotes(prev => [newNote, ...prev]);
 
       if (user && supabase) {
-        try { await supabase.from('notes').insert(newNote); } catch {}
+        supabase.from('notes').insert(newNote).catch(console.error);
+      }
+    } else {
+      setNotes(prev => prev.map(n => n.id === targetId ? {
+        ...n,
+        title: title.trim() || null,
+        content: content.trim(),
+        color, tag, priority, font,
+        reminder: reminder || null,
+        reminderTriggered: isReminderChanged ? false : n.reminderTriggered,
+        updated: Date.now()
+      } : n));
+
+      const timer = setTimeout(() => {
+        if (user && supabase) {
+          supabase.from('notes').update({
+            title: title.trim() || null,
+            content: content.trim(),
+            color, tag, priority, font,
+            reminder: reminder || null,
+            reminderTriggered: isReminderChanged ? false : undefined, // Handled carefully
+            updated: Date.now()
+          }).eq('id', targetId).catch(console.error);
+        }
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [title, content, color, tag, priority, font, reminder]);
+
+  const handleClose = () => {
+    // Cleanup blank auto-created cards
+    if (hasCreated && !title.trim() && !content.trim()) {
+      const targetId = savedId;
+      setNotes(prev => prev.filter(n => n.id !== targetId));
+      if (user && supabase) {
+        supabase.from('notes').delete().eq('id', targetId).catch(console.error);
       }
     }
-
-    setSaving(false);
     setEditingNote(null);
     onClose();
+  };
+
+  const handleSubmit = (e) => {
+    if (e) e.preventDefault();
+    setEditingNote(null);
+    onClose();
+  };
+
+  const handleApplyTemplate = (e) => {
+    const selected = e.target.value;
+    if (!selected) return;
+    const template = TEMPLATES_MAP[selected];
+    if (template) {
+      setTitle(template.title);
+      setContent(template.content);
+      setColor(template.color);
+      setTag(template.tag);
+      setPriority(template.priority || 'none');
+    }
   };
 
   return (
@@ -103,6 +253,28 @@ export function Modal({ type, onClose }) {
             </div>
           </div>
 
+          {/* Template Selector dropdown */}
+          <div className="form-group">
+            <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Insert Template</span>
+              <span style={{ fontSize: '11px', opacity: 0.6 }}>(Fills title, content, color, and type)</span>
+            </label>
+            <select
+              className="glass-select"
+              value=""
+              onChange={handleApplyTemplate}
+              style={{ width: '100%', padding: '8px 12px', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+            >
+              <option value="">-- Apply a Template --</option>
+              <option value="meeting">📝 Meeting Notes</option>
+              <option value="project">🚀 Project Plan</option>
+              <option value="daily">☀️ Daily Review</option>
+              <option value="habit">✅ Habit Tracker</option>
+              <option value="learning">📚 Learning Log</option>
+              <option value="gratitude">🙏 Gratitude Journal</option>
+            </select>
+          </div>
+
           {/* Title */}
           <div className="form-group">
             <label>Title</label>
@@ -124,6 +296,7 @@ export function Modal({ type, onClose }) {
               rows={5}
               value={content}
               onChange={e => setContent(e.target.value)}
+              onKeyDown={handleTextareaKeyDown}
             />
           </div>
 
@@ -155,11 +328,43 @@ export function Modal({ type, onClose }) {
             </div>
           </div>
 
-          <div className="modal-actions">
-            <button type="button" className="btn-cancel" onClick={handleClose}>Cancel</button>
-            <button type="submit" className="btn-submit" disabled={saving}>
-              {saving ? 'Saving...' : editingNote ? '✨ Update Note' : '✨ Create Note'}
-            </button>
+          {/* Reminder Date & Time */}
+          <div className="form-group">
+            <label>⏰ Set Reminder (Optional)</label>
+            <input
+              type="datetime-local"
+              className="modal-input"
+              value={reminder}
+              onChange={e => setReminder(e.target.value)}
+              style={{ width: '100%', padding: '8px 12px', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', outline: 'none' }}
+            />
+          </div>
+
+          {/* Font Selector */}
+          <div className="form-group">
+            <label>Font Style</label>
+            <div className="tag-selector">
+              {['default', 'handwriting', 'mono', 'serif'].map(f => (
+                <button
+                  key={f}
+                  type="button"
+                  className={`tag-btn ${font === f ? 'active' : ''}`}
+                  onClick={() => setFont(f)}
+                >
+                  {f === 'default' ? '✍️ Sans' : f === 'handwriting' ? '🎨 Cursive' : f === 'mono' ? '💻 Mono' : '📖 Serif'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="modal-actions" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              {hasCreated ? '✨ Saved automatically' : ''}
+            </span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button type="button" className="btn-cancel" onClick={handleClose}>Cancel</button>
+              <button type="submit" className="btn-submit">Done</button>
+            </div>
           </div>
         </form>
       </div>

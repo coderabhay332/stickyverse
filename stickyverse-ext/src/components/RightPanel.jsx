@@ -20,12 +20,32 @@ export function RightPanel() {
     if (!isPomodoroRunning) return;
     const t = setInterval(() => {
       setPomodoroTime(prev => {
-        if (prev <= 0) { setIsPomodoroRunning(false); return 0; }
+        if (prev <= 1) {
+          setIsPomodoroRunning(false);
+          if ('Notification' in window) {
+            if (Notification.permission === 'granted') {
+              new Notification("🍅 Pomodoro Complete!", {
+                body: "Great job! Take a short 5-minute break.",
+                icon: 'icons/icon32.png'
+              });
+            } else {
+              alert("🍅 Pomodoro Complete!\n\nGreat job! Take a short 5-minute break.");
+            }
+          }
+          return 0;
+        }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(t);
   }, [isPomodoroRunning]);
+
+  const handleStartPomodoro = () => {
+    if (!isPomodoroRunning && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+    setIsPomodoroRunning(v => !v);
+  };
 
   const formatPomodoro = s => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
   const pomodoroProgress = ((pomodoroTotal - pomodoroTime) / pomodoroTotal) * 100;
@@ -51,7 +71,7 @@ export function RightPanel() {
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             className="pomodoro-btn"
-            onClick={() => setIsPomodoroRunning(v => !v)}
+            onClick={handleStartPomodoro}
           >
             {isPomodoroRunning ? '⏸ Pause' : '▶ Start'}
           </button>

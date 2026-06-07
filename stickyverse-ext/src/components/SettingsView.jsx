@@ -2,7 +2,7 @@ import React from 'react';
 import { useAppContext } from '../App';
 
 export function SettingsView() {
-  const { theme, setTheme, THEMES, user, signIn, signOut } = useAppContext();
+  const { theme, setTheme, THEMES, globalFont, setGlobalFont, user, signIn, signOut } = useAppContext();
 
   const clearData = () => {
     if (window.confirm('Clear all local data? This cannot be undone.')) {
@@ -41,6 +41,34 @@ export function SettingsView() {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Font Section */}
+      <div className="settings-section">
+        <div className="settings-section-title">✍️ Dashboard Font</div>
+        <div className="widget" style={{ padding: '16px' }}>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', marginBottom: 14 }}>
+            Choose the global font style for your workspace dashboard and note text:
+          </div>
+          <div className="tag-selector" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {[
+              { id: 'sans', label: '✍️ Sans Serif (Modern)' },
+              { id: 'serif', label: '📖 Serif (Editorial)' },
+              { id: 'handwriting', label: '🎨 Handwriting (Retro)' },
+              { id: 'mono', label: '💻 Monospace (Developer)' }
+            ].map(f => (
+              <button
+                key={f.id}
+                type="button"
+                className={`tag-btn ${globalFont === f.id ? 'active' : ''}`}
+                onClick={() => setGlobalFont(f.id)}
+                style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '13px', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

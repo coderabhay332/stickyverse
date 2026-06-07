@@ -409,9 +409,10 @@ body {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 10px 24px;
-  background: rgba(124,58,237,0.08);
-  border-bottom: 1px solid rgba(124,58,237,0.15);
+  padding: 12px 24px;
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.15) 0%, rgba(236, 72, 153, 0.08) 100%);
+  border-bottom: 2px solid rgba(139, 92, 246, 0.3);
+  box-shadow: 0 4px 20px -2px rgba(139, 92, 246, 0.15);
   flex-shrink: 0;
 }
 .focus-icon { font-size: 20px; flex-shrink: 0; }
@@ -424,13 +425,14 @@ body {
   margin-bottom: 1px;
 }
 .focus-text {
-  font-size: 13px;
-  font-weight: 500;
-  color: #e8dfee;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #ffffff;
   cursor: text;
   outline: none;
+  text-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
 }
-.focus-text:focus { color: #fff; }
+.focus-text:focus { color: #fff; text-shadow: 0 0 15px rgba(139, 92, 246, 0.8); }
 .focus-edit-btn {
   margin-left: auto;
   width: 28px;
@@ -594,23 +596,37 @@ body {
 .checklist { list-style: none; display: flex; flex-direction: column; gap: 5px; }
 .checklist-item {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  font-size: 13px;
-  opacity: 0.85;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  margin: 6px 0;
+  transition: all var(--transition);
 }
-.checklist-item.checked { opacity: 0.5; text-decoration: line-through; }
+.checklist-item.checked { opacity: 0.6; text-decoration: line-through; }
 .checkbox {
-  width: 16px;
-  height: 16px;
-  border: 1.5px solid currentColor;
-  border-radius: 4px;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(0, 0, 0, 0.25);
+  border-radius: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: bold;
   flex-shrink: 0;
-  margin-top: 1px;
+  transition: all var(--transition);
+  background: white;
+  color: transparent;
+}
+.note-dark .checkbox {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.05);
+  color: transparent;
+}
+.checklist-item.checked .checkbox {
+  background: #8B5CF6;
+  border-color: #8B5CF6;
+  color: white;
 }
 
 /* Note footer */
@@ -1344,3 +1360,18 @@ body {
   user-select: none;
   z-index: 1;
 }
+
+/* ─── Font Customization Classes ────────────────────────────────────────────── */
+body.body-font-sans, body.body-font-sans * { font-family: 'DM Sans', sans-serif !important; }
+body.body-font-serif, body.body-font-serif * { font-family: Georgia, serif !important; }
+body.body-font-handwriting, body.body-font-handwriting * { font-family: 'Caveat', cursive !important; }
+body.body-font-mono, body.body-font-mono * { font-family: 'Geist Mono', monospace !important; }
+
+/* Note-specific overrides */
+.font-default { /* inherits from body */ }
+.font-handwriting, .font-handwriting *,
+.font-handwriting .note-content, .font-handwriting .note-title { font-family: 'Caveat', cursive !important; font-size: 17.5px !important; }
+.font-mono, .font-mono *,
+.font-mono .note-content, .font-mono .note-title { font-family: 'Geist Mono', monospace !important; font-size: 12.5px !important; }
+.font-serif, .font-serif *,
+.font-serif .note-content, .font-serif .note-title { font-family: Georgia, serif !important; font-size: 13.5px !important; }

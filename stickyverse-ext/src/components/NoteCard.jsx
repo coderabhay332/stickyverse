@@ -21,24 +21,11 @@ const STATUS_MAP = {
 const fmtFullDate = ts => {
   if (!ts) return '';
   const d = new Date(ts);
-  const now = new Date();
-  
-  // Strip time from both dates to compare calendar days
-  const dDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const diffTime = nowDate - dDate;
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  
-  if (diffDays === 0) {
-    return `Today, ${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
-  } else if (diffDays === 1) {
-    return `Yesterday, ${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
-  } else if (diffDays < 7 && diffDays > 0) {
-    return `${d.toLocaleDateString([], {weekday:'short'})}, ${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
-  } else {
-    return d.toLocaleDateString([], {day:'numeric',month:'short',year:'numeric'}) + ' · ' +
-           d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-  }
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = d.toLocaleDateString([], { month: 'short' });
+  const year = d.getFullYear();
+  const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return `${day} ${month} ${year} · ${timeStr}`;
 };
 
 export function NoteCard({ note, index }) {
@@ -187,7 +174,7 @@ export function NoteCard({ note, index }) {
 
   return (
     <div
-      className={`note-card note-${note.color || 'purple'} ${hasSpiral ? 'has-spiral' : ''}`}
+      className={`note-card note-${note.color || 'purple'} font-${note.font || 'default'} ${hasSpiral ? 'has-spiral' : ''}`}
       style={{
         animationDelay: `${Math.min(index * 0.05, 0.4)}s`,
       }}
@@ -272,7 +259,7 @@ export function NoteCard({ note, index }) {
                       onClick={(e) => handleToggleChecklist(e, i)}
                       style={{ cursor: 'pointer' }}
                     >
-                      <span className="checkbox">{isChecked ? '✓' : ''}</span>
+                      <span className="checkbox">✓</span>
                       <span>{text}</span>
                     </li>
                   );
@@ -287,6 +274,26 @@ export function NoteCard({ note, index }) {
           <div style={{ marginTop: 8 }}>
             <span className={`priority-badge priority-${note.priority}`}>
               {{ low: '🟢 Low', medium: '🟡 Med', high: '🔴 High', urgent: '🚨 Urgent' }[note.priority] || note.priority.toUpperCase()}
+            </span>
+          </div>
+        )}
+
+        {/* Reminder Badge */}
+        {note.reminder && (
+          <div style={{ marginTop: 8 }}>
+            <span className="reminder-badge" style={{
+              background: 'rgba(236,72,153,0.12)',
+              border: '1px solid rgba(236,72,153,0.3)',
+              color: '#F472B6',
+              fontSize: '11px',
+              padding: '3px 8px',
+              borderRadius: '6px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontWeight: 500
+            }}>
+              ⏰ {new Date(note.reminder).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}
             </span>
           </div>
         )}
