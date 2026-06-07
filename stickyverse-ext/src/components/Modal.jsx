@@ -240,7 +240,7 @@ export function Modal({ type, onClose }) {
           <button className="modal-close" onClick={handleClose}>×</button>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           {/* Tag selector */}
           <div className="form-group">
             <label>Type</label>
@@ -330,7 +330,29 @@ export function Modal({ type, onClose }) {
 
           {/* Reminder Date & Time */}
           <div className="form-group">
-            <label>⏰ Set Reminder (Optional)</label>
+            <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>⏰ Set Reminder (Optional)</span>
+              {reminder && (
+                <button
+                  type="button"
+                  onClick={() => setReminder('')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#f87171',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                    padding: '0 4px',
+                    fontWeight: 600,
+                    transition: 'opacity 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.opacity = '0.8'}
+                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                >
+                  Clear
+                </button>
+              )}
+            </label>
             <input
               type="datetime-local"
               className="modal-input"
