@@ -10,49 +10,23 @@ const QUOTES = [
 ];
 
 export function RightPanel() {
-  const { notes, links } = useAppContext();
-  const [pomodoroTime, setPomodoroTime] = useState(25 * 60);
-  const [pomodoroTotal] = useState(25 * 60);
-  const [isPomodoroRunning, setIsPomodoroRunning] = useState(false);
+  const { 
+    notes, 
+    links,
+    pomodoroTime,
+    setPomodoroTime,
+    pomodoroTotal,
+    isPomodoroRunning,
+    handleStartPomodoro
+  } = useAppContext();
   const [quoteIdx, setQuoteIdx] = useState(0);
-
-  useEffect(() => {
-    if (!isPomodoroRunning) return;
-    const t = setInterval(() => {
-      setPomodoroTime(prev => {
-        if (prev <= 1) {
-          setIsPomodoroRunning(false);
-          if ('Notification' in window) {
-            if (Notification.permission === 'granted') {
-              new Notification("🍅 Pomodoro Complete!", {
-                body: "Great job! Take a short 5-minute break.",
-                icon: 'icons/icon32.png'
-              });
-            } else {
-              alert("🍅 Pomodoro Complete!\n\nGreat job! Take a short 5-minute break.");
-            }
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(t);
-  }, [isPomodoroRunning]);
-
-  const handleStartPomodoro = () => {
-    if (!isPomodoroRunning && 'Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-    setIsPomodoroRunning(v => !v);
-  };
 
   const formatPomodoro = s => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
   const pomodoroProgress = ((pomodoroTotal - pomodoroTime) / pomodoroTotal) * 100;
 
   // Calculate dynamic stats
   const todayStart = new Date().setHours(0, 0, 0, 0);
-  const notesToday = notes.filter(n => n.created >= todayStart).length;
+  const notesToday = notes.filter(n => (n.created || Date.now()) >= todayStart).length;
   const tasksDone = notes.filter(n => n.status === 'completed').length;
   const linksSaved = links.length + notes.filter(n => n.tag === 'link').length;
 

@@ -9,7 +9,9 @@ export function WidgetsView() {
     waterReminder, 
     setWaterReminder, 
     waterInterval, 
-    setWaterInterval 
+    setWaterInterval,
+    pomodoroTime,
+    pomodoroTotal
   } = useAppContext();
 
   const [waterIntake, setWaterIntake] = useLocalStorage('sv_water_intake', 0);
@@ -32,10 +34,12 @@ export function WidgetsView() {
     setWaterIntake(prev => Math.max(0, prev - 1));
   };
 
-  const today = new Date().toDateString();
-  const todayNotes = notes.filter(note => new Date(note.created).toDateString() === today);
-  const completedTasks = notes.filter(note => note.status === 'completed');
-  const todayLinks = links.filter(link => new Date(link.savedAt || Date.now()).toDateString() === today);
+  // Calculate dynamic stats matching RightPanel
+  const todayStart = new Date().setHours(0, 0, 0, 0);
+  const notesToday = notes.filter(n => (n.created || Date.now()) >= todayStart).length;
+  const tasksDone = notes.filter(n => n.status === 'completed').length;
+  const linksSaved = links.length + notes.filter(n => n.tag === 'link').length;
+  const focusTime = `${Math.round(((pomodoroTotal - pomodoroTime) / 3600) * 10) / 10}h`;
 
   const targetCups = 8;
   const intakePercent = Math.min(100, (waterIntake / targetCups) * 100);
@@ -60,19 +64,19 @@ export function WidgetsView() {
           </div>
           <div className="stats-grid">
             <div className="stat-item">
-              <div className="stat-number">{todayNotes.length}</div>
+              <div className="stat-number">{notesToday}</div>
               <div className="stat-label">Notes Today</div>
             </div>
             <div className="stat-item">
-              <div className="stat-number">{completedTasks.length}</div>
+              <div className="stat-number">{tasksDone}</div>
               <div className="stat-label">Tasks Done</div>
             </div>
             <div className="stat-item">
-              <div className="stat-number">{todayLinks.length}</div>
+              <div className="stat-number">{linksSaved}</div>
               <div className="stat-label">Links Saved</div>
             </div>
             <div className="stat-item">
-              <div className="stat-number">1.2h</div>
+              <div className="stat-number">{focusTime}</div>
               <div className="stat-label">Focus Time</div>
             </div>
           </div>
@@ -165,22 +169,6 @@ export function WidgetsView() {
               </select>
             </div>
           )}
-        </div>
-
-        {/* Focus Widget Description */}
-        <div className="widget" style={{ minHeight: '140px', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff', marginBottom: '8px' }}>🎯 Today's Focus</div>
-          <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>
-            Type your main priority in the bar at the top of the canvas. Keep it visible to stay on track throughout the day.
-          </p>
-        </div>
-
-        {/* Pomodoro Description */}
-        <div className="widget" style={{ minHeight: '140px', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff', marginBottom: '8px' }}>🍅 Pomodoro Timer</div>
-          <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>
-            Use the focus timer in the right sidebar panel to segment work into 25-minute intervals. Stay disciplined and focused.
-          </p>
         </div>
       </div>
     </div>

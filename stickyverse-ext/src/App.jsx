@@ -55,6 +55,43 @@ export default function App() {
   const [waterInterval, setWaterInterval] = useLocalStorage('sv_water_interval', 120);
   const [toast, setToast] = useState(null);
 
+  // Pomodoro Timer State
+  const [pomodoroTime, setPomodoroTime] = useState(25 * 60);
+  const [pomodoroTotal] = useState(25 * 60);
+  const [isPomodoroRunning, setIsPomodoroRunning] = useState(false);
+
+  // Pomodoro Timer Effect
+  useEffect(() => {
+    if (!isPomodoroRunning) return;
+    const t = setInterval(() => {
+      setPomodoroTime(prev => {
+        if (prev <= 1) {
+          setIsPomodoroRunning(false);
+          if ('Notification' in window) {
+            if (Notification.permission === 'granted') {
+              new Notification("🍅 Pomodoro Complete!", {
+                body: "Great job! Take a short 5-minute break.",
+                icon: 'icons/icon32.png'
+              });
+            } else {
+              alert("🍅 Pomodoro Complete!\n\nGreat job! Take a short 5-minute break.");
+            }
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [isPomodoroRunning]);
+
+  const handleStartPomodoro = () => {
+    if (!isPomodoroRunning && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+    setIsPomodoroRunning(v => !v);
+  };
+
   // Listen for background alarm messages (like water reminder fallback toasts)
   useEffect(() => {
     const handleMessage = (message) => {
@@ -247,7 +284,11 @@ export default function App() {
     premiumUnlocked, setPremiumUnlocked,
     showPremiumModal, setShowPremiumModal,
     wallpaper, setWallpaper,
-    setToast
+    setToast,
+    pomodoroTime, setPomodoroTime,
+    pomodoroTotal,
+    isPomodoroRunning, setIsPomodoroRunning,
+    handleStartPomodoro
   };
 
   if (authLoading) {
