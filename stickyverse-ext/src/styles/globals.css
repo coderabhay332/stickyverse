@@ -533,13 +533,13 @@ body {
   background: var(--theme-card);
 }
 .note-card:hover { transform: translateY(-4px); }
-.note-inner { 
-  border-radius: var(--radius-lg); 
-  overflow: hidden; 
-  padding: 15px; 
-  position: relative; 
-  cursor: pointer; 
-  color: #2a2050; 
+.note-inner {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  padding: 32px 15px 48px;
+  position: relative;
+  cursor: pointer;
+  color: #2a2050;
 }
 .note-dark .note-inner {
   color: #ede9fe;
@@ -635,10 +635,18 @@ body {
 }
 
 /* Note footer */
-.note-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding-top: 7px; border-top: 1px solid rgba(0,0,0,0.07); }
+.note-footer { display: flex; flex-direction: column; align-items: flex-start; margin-top: 10px; padding-top: 7px; border-top: 1px solid rgba(0,0,0,0.07); }
 .note-dark .note-footer { border-top-color: rgba(255,255,255,0.07); }
 .note-date { font-size: 9.5px; opacity: 0.5; font-family: 'Geist Mono', monospace; white-space: nowrap; }
-.note-actions { display: flex; gap: 4px; transition: opacity 0.2s; }
+.note-actions {
+  display: flex;
+  gap: 4px;
+  transition: opacity 0.2s;
+  position: absolute;
+  bottom: 8px;
+  left: 15px;
+  z-index: 30;
+}
 .note-action-btn {
   width: 26px;
   height: 26px;
@@ -1396,14 +1404,40 @@ body.body-font-mono,
 body.body-font-mono :not(.material-symbols-outlined) { font-family: 'Geist Mono', monospace !important; }
 
 /* Note-specific overrides (takes precedence over global setting on note cards and modals) */
-.note-card.font-handwriting, .note-card.font-handwriting *,
-.modal.font-handwriting .modal-input, .modal.font-handwriting .modal-textarea { font-family: 'Caveat', cursive !important; font-size: 17.5px !important; }
+.note-card.font-handwriting .note-title,
+.note-card.font-handwriting .note-content,
+.note-card.font-handwriting .note-text-line,
+.note-card.font-handwriting .checklist-item span,
+.note-card.font-handwriting .bullet-item span,
+.note-card.font-handwriting .quote-body,
+.note-card.font-handwriting .quote-author,
+.modal.font-handwriting .modal-input, .modal.font-handwriting .modal-textarea { font-family: 'Caveat', cursive !important; font-size: 19.5px !important; }
 
-.note-card.font-mono, .note-card.font-mono *,
+.note-card.font-mono .note-title,
+.note-card.font-mono .note-content,
+.note-card.font-mono .note-text-line,
+.note-card.font-mono .checklist-item span,
+.note-card.font-mono .bullet-item span,
+.note-card.font-mono .quote-body,
+.note-card.font-mono .quote-author,
 .modal.font-mono .modal-input, .modal.font-mono .modal-textarea { font-family: 'Geist Mono', monospace !important; font-size: 12.5px !important; }
 
-.note-card.font-serif, .note-card.font-serif *,
+.note-card.font-serif .note-title,
+.note-card.font-serif .note-content,
+.note-card.font-serif .note-text-line,
+.note-card.font-serif .checklist-item span,
+.note-card.font-serif .bullet-item span,
+.note-card.font-serif .quote-body,
+.note-card.font-serif .quote-author,
 .modal.font-serif .modal-input, .modal.font-serif .modal-textarea { font-family: Georgia, serif !important; font-size: 13.5px !important; }
+
+.note-card.font-default .note-title,
+.note-card.font-default .note-content,
+.note-card.font-default .note-text-line,
+.note-card.font-default .checklist-item span,
+.note-card.font-default .bullet-item span,
+.note-card.font-default .quote-body,
+.note-card.font-default .quote-author { font-family: inherit !important; }
 
 /* Custom Toast Keyframes */
 @keyframes slideIn {
@@ -1418,17 +1452,48 @@ body.body-font-mono :not(.material-symbols-outlined) { font-family: 'Geist Mono'
 }
 
 /* ─── Premium Fonts Overrides ──────────────────────────────────────────────── */
-.note-card.font-signature, .note-card.font-signature *,
-.modal.font-signature .modal-input, .modal.font-signature .modal-textarea { font-family: 'Sacramento', cursive !important; font-size: 22px !important; }
+.note-card.font-signature .note-title,
+.note-card.font-signature .note-content,
+.note-card.font-signature .note-text-line,
+.note-card.font-signature .checklist-item span,
+.note-card.font-signature .bullet-item span,
+.note-card.font-signature .quote-body,
+.note-card.font-signature .quote-author,
+.modal.font-signature .modal-input, .modal.font-signature .modal-textarea { font-family: 'Sacramento', cursive !important; font-size: 24px !important; }
 
-.note-card.font-playful, .note-card.font-playful *,
+.note-card.font-playful .note-title,
+.note-card.font-playful .note-content,
+.note-card.font-playful .note-text-line,
+.note-card.font-playful .checklist-item span,
+.note-card.font-playful .bullet-item span,
+.note-card.font-playful .quote-body,
+.note-card.font-playful .quote-author,
 .modal.font-playful .modal-input, .modal.font-playful .modal-textarea { font-family: 'Fredoka', sans-serif !important; font-size: 14.5px !important; }
 
-.note-card.font-chalkboard, .note-card.font-chalkboard *,
+.note-card.font-chalkboard .note-title,
+.note-card.font-chalkboard .note-content,
+.note-card.font-chalkboard .note-text-line,
+.note-card.font-chalkboard .checklist-item span,
+.note-card.font-chalkboard .bullet-item span,
+.note-card.font-chalkboard .quote-body,
+.note-card.font-chalkboard .quote-author,
 .modal.font-chalkboard .modal-input, .modal.font-chalkboard .modal-textarea { font-family: 'Architects Daughter', cursive !important; font-size: 15.5px !important; }
 
-.note-card.font-dyslexic, .note-card.font-dyslexic *,
+.note-card.font-dyslexic .note-title,
+.note-card.font-dyslexic .note-content,
+.note-card.font-dyslexic .note-text-line,
+.note-card.font-dyslexic .checklist-item span,
+.note-card.font-dyslexic .bullet-item span,
+.note-card.font-dyslexic .quote-body,
+.note-card.font-dyslexic .quote-author,
 .modal.font-dyslexic .modal-input, .modal.font-dyslexic .modal-textarea { font-family: 'Lexend', sans-serif !important; font-size: 14px !important; }
+
+/* Calendar picker indicator visibility on dark inputs */
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.7;
+  cursor: pointer;
+}
 
 /* ─── Note Card Quick Color Picker ─────────────────────────────────────────── */
 .note-color-picker-wrapper {

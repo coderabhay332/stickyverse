@@ -16,33 +16,36 @@ export function NotesGrid() {
   const { notes, filter, sortBy, searchQuery, setNotes, user, supabase } = useAppContext();
 
   const filtered = useMemo(() => {
-    let arr = notes.filter(n => !n.archived);
+    let arr = notes.filter(n => n && !n.archived);
 
     // Search
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       arr = arr.filter(n =>
-        (n.title || '').toLowerCase().includes(q) ||
-        (n.content || '').toLowerCase().includes(q)
+        n && (
+          (n.title || '').toLowerCase().includes(q) ||
+          (n.content || '').toLowerCase().includes(q)
+        )
       );
     }
 
     // Tag filter
-    if (filter !== 'all') arr = arr.filter(n => n.tag === filter);
+    if (filter !== 'all') arr = arr.filter(n => n && n.tag === filter);
 
     // Sort
     const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1, none: 0 };
     return [...arr].sort((a, b) => {
+      if (!a || !b) return 0;
       switch (sortBy) {
-        case 'oldest':      return a.created - b.created;
-        case 'updated':     return (b.updated || b.created) - (a.updated || a.created);
+        case 'oldest':      return (a.created || 0) - (b.created || 0);
+        case 'updated':     return ((b.updated || b.created) || 0) - ((a.updated || a.created) || 0);
         case 'priority':    return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
         case 'alphabetical':return (a.title || '').localeCompare(b.title || '');
         case 'status':
           const statusOrder = { completed: 5, 'in-progress': 4, delayed: 3, waiting: 2, cancelled: 1, none: 0 };
           return (statusOrder[b.status || 'none'] || 0) - (statusOrder[a.status || 'none'] || 0);
         case 'category':    return (a.tag || '').localeCompare(b.tag || '');
-        default:            return b.created - a.created;
+        default:            return (b.created || 0) - (a.created || 0);
       }
     });
   }, [notes, filter, sortBy, searchQuery]);
@@ -175,68 +178,12 @@ export function NotesGrid() {
     );
   }
 
-  // Separate pinned and non-pinned
-  const pinned = filtered.filter(n => n.pinned);
-  const nonPinned = filtered.filter(n => !n.pinned);
-
   return (
     <div>
-      {/* Pinned Section */}
-      {pinned.length > 0 && (
-        <div style={{ marginBottom: 30 }}>
-          <div style={{
-            fontSize: 10, fontFamily: 'Geist Mono, monospace', letterSpacing: '0.15em',
-            textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', marginBottom: 10,
-            display: 'flex', alignItems: 'center', gap: 6
-          }}>
-            <span>📌</span> Pinned Notes
-          </div>
-          <div className="notes-masonry">
-            {pinned.map((note, i) => <NoteCard key={note.id} note={note} index={i} />)}
-          </div>
-        </div>
-      )}
-
-      {/* Unified Notes Wall */}
-      <div>
-        {pinned.length > 0 && nonPinned.length > 0 && (
-          <div style={{
-            fontSize: 10, fontFamily: 'Geist Mono, monospace', letterSpacing: '0.15em',
-            textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', marginBottom: 10,
-            display: 'flex', alignItems: 'center', gap: 6
-          }}>
-            <span>📝</span> Board Notes
-          </div>
-        )}
-        <div className="notes-masonry">
-          {nonPinned.map((note, i) => (
-            <NoteCard key={note.id} note={note} index={pinned.length + i} />
-          ))}
-        </div>
-      </div>
-
-      {/* Quick Templates Row */}
-      <div style={{ marginTop: 40, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 24 }}>
-        <div style={{
-          fontSize: 10, fontFamily: 'Geist Mono, monospace', letterSpacing: '0.15em',
-          textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', marginBottom: 16
-        }}>
-          ✨ Quick Start Templates
-        </div>
-        <div className="templates-grid">
-          {TEMPLATES.map(t => (
-            <div
-              key={t.id}
-              className="template-card"
-              onClick={() => handleCreateFromTemplate(t.id)}
-              style={{ padding: '16px 12px' }}
-            >
-              <div className="template-icon" style={{ fontSize: '1.6rem', marginBottom: 6 }}>{t.em}</div>
-              <div className="template-title" style={{ fontSize: '0.85rem', marginBottom: 2 }}>{t.title}</div>
-              <div className="template-desc" style={{ fontSize: '0.75rem', lineHeight: 1.3 }}>{t.desc}</div>
-            </div>
-          ))}
-        </div>
+      <div className="notes-masonry">
+        {filtered.map((note, i) => (
+          <NoteCard key={note.id} note={note} index={i} />
+        ))}
       </div>
     </div>
   );

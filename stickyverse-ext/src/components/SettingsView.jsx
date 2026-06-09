@@ -35,18 +35,50 @@ export function SettingsView() {
       return str;
     };
 
+    const safeDateISO = (val) => {
+      try {
+        if (!val) return "";
+        const d = new Date(val);
+        if (isNaN(d.getTime())) return "";
+        return d.toISOString();
+      } catch (e) {
+        return "";
+      }
+    };
+
+    const formatCSVContent = (content, tag) => {
+      if (!content) return "";
+      const isChecklistTag = tag === 'checklist';
+      const lines = content.split('\n');
+      const formattedLines = lines.map(line => {
+        const isChecked = line.startsWith('[x]') || line.startsWith('[x] ');
+        const isUnchecked = line.startsWith('[ ]') || line.startsWith('[ ] ');
+        const isChecklistItem = isChecklistTag ? line.trim() !== '' : (isChecked || isUnchecked);
+        
+        if (isChecklistItem) {
+          const cleanText = line
+            .replace(/^\[x\]\s?/, '')
+            .replace(/^\[ \]\s?/, '')
+            .replace(/^(•|-)\s?/, '');
+          return isChecked ? `✓ ${cleanText}` : `☐ ${cleanText}`;
+        }
+        return line;
+      });
+      return formattedLines.join('\n');
+    };
+
     const rows = notes.map(n => [
       n.id,
       n.title || "",
-      n.content || "",
+      formatCSVContent(n.content || "", n.tag || "note"),
       n.tag || "note",
       n.status || "none",
       n.priority || "none",
       n.pinned ? "Yes" : "No",
       n.starred ? "Yes" : "No",
       n.archived ? "Yes" : "No",
-      new Date(n.created).toISOString(),
-      new Date(n.updated).toISOString()
+      safeDateISO(n.created),
+      safeDateISO(n.updated)
     ]);
     
     // Combine headers and rows
@@ -55,12 +87,20 @@ export function SettingsView() {
       ...rows.map(r => r.map(escapeCSV).join(","))
     ].join("\n");
     
-    // Create download link
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // Create download link with UTF-8 BOM
+    const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `stickyverse_notes_export_${new Date().toISOString().slice(0,10)}.csv`);
+    
+    let dateStr = "";
+    try {
+      dateStr = "_" + new Date().toISOString().slice(0, 10);
+    } catch (e) {
+      dateStr = "";
+    }
+    
+    link.setAttribute("download", `stickyverse_notes_export${dateStr}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();

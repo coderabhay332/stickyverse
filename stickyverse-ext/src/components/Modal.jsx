@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../App';
 
 const TAG_COLORS = { note: 'purple', task: 'blue', checklist: 'blue', idea: 'yellow', quote: 'green', link: 'pink' };
@@ -65,14 +65,16 @@ export function Modal({ type, onClose }) {
   const [title, setTitle] = useState(editingNote && editingNote.title ? editingNote.title : '');
   const [content, setContent] = useState(editingNote && editingNote.content ? editingNote.content : (type === 'checklist' || type === 'task') ? '[ ] ' : '');
   const [color, setColor] = useState(editingNote && editingNote.color ? editingNote.color : 'purple');
+  const [customColor, setCustomColor] = useState(editingNote && editingNote.customColor ? editingNote.customColor : '');
   const [tag, setTag] = useState(editingNote && editingNote.tag ? editingNote.tag : 'note');
   const [priority, setPriority] = useState(editingNote && editingNote.priority ? editingNote.priority : 'none');
+  const [status, setStatus] = useState(editingNote && editingNote.status ? editingNote.status : 'none');
   const [font, setFont] = useState(editingNote && editingNote.font ? editingNote.font : 'default');
   const [reminder, setReminder] = useState(editingNote && editingNote.reminder ? editingNote.reminder : '');
   const [saving, setSaving] = useState(false);
 
-  const [savedId, setSavedId] = useState(editingNote ? editingNote.id : null);
-  const [hasCreated, setHasCreated] = useState(!!editingNote);
+  const savedIdRef = useRef(editingNote ? editingNote.id : null);
+  const hasCreatedRef = useRef(!!editingNote);
 
   // Automatically insert checklist box or hyphen for new empty notes when tag toggles
   useEffect(() => {
@@ -146,42 +148,74 @@ export function Modal({ type, onClose }) {
 
   // Autosave effect
   useEffect(() => {
-    if (!hasCreated && !title.trim() && !content.trim()) return;
+    if (!hasCreatedRef.current && !title.trim() && !content.trim()) return;
 
-    let targetId = savedId;
-    let isNew = !hasCreated;
+    let targetId = savedIdRef.current;
+    let isNew = !hasCreatedRef.current;
 
     // Reset reminderTriggered if the reminder changes or is newly set
     const isReminderChanged = editingNote ? editingNote.reminder !== reminder : reminder !== '';
 
+    // Helper to format note for Supabase sync (to avoid columns count mismatch or violating CHECK constraints)
+    const toRow = (n) => ({
+      id: n.id,
+      user_id: user?.id,
+      title: n.title,
+      content: n.content,
+      type: n.tag === 'checklist' ? 'checklist' : n.tag === 'quote' ? 'quote' : 'note',
+      style: n.tag === 'quote' ? 'polaroid' : 'regular', // standard fallback style
+      color: ['purple', 'yellow', 'pink', 'green', 'blue', 'cream', 'dark'].includes(n.color) ? n.color : 'purple', // db enum valid value
+      tag: n.tag || 'note',
+      status: n.status || 'none',
+      priority: n.priority || 'medium',
+      pinned: !!n.pinned,
+      starred: !!n.starred,
+      items: n.items || null,
+      author: n.tag === 'quote' ? (n.title || '') : null,
+      created_at: new Date(n.created).toISOString(),
+      updated_at: new Date(n.updated).toISOString(),
+    });
+
     if (isNew) {
       targetId = `note_${Date.now()}_${Math.random().toString(36).substr(2,6)}`;
-      setSavedId(targetId);
-      setHasCreated(true);
+      savedIdRef.current = targetId;
+      hasCreatedRef.current = true;
 
       const newNote = {
         id: targetId,
         title: title.trim() || null,
         content: content.trim(),
-        color, tag, priority, font,
+        color,
+        customColor: customColor || null,
+        tag,
+        priority,
+        status,
+        font,
         reminder: reminder || null,
         reminderTriggered: false,
-        status: 'none',
-        pinned: false, starred: false, archived: false,
-        created: Date.now(), updated: Date.now(),
+        pinned: false,
+        starred: false,
+        archived: false,
+        created: Date.now(),
+        updated: Date.now(),
       };
 
       setNotes(prev => [newNote, ...prev]);
 
       if (user && supabase) {
-        supabase.from('notes').insert(newNote).catch(console.error);
+        Promise.resolve(supabase.from('notes').insert(toRow(newNote))).catch(console.error);
       }
     } else {
       setNotes(prev => prev.map(n => n.id === targetId ? {
         ...n,
         title: title.trim() || null,
         content: content.trim(),
-        color, tag, priority, font,
+        color,
+        customColor: customColor || null,
+        tag,
+        priority,
+        status,
+        font,
         reminder: reminder || null,
         reminderTriggered: isReminderChanged ? false : n.reminderTriggered,
         updated: Date.now()
@@ -189,28 +223,35 @@ export function Modal({ type, onClose }) {
 
       const timer = setTimeout(() => {
         if (user && supabase) {
-          supabase.from('notes').update({
+          const updatedNote = {
+            id: targetId,
             title: title.trim() || null,
             content: content.trim(),
-            color, tag, priority, font,
+            color,
+            customColor: customColor || null,
+            tag,
+            priority,
+            status,
+            font,
             reminder: reminder || null,
-            reminderTriggered: isReminderChanged ? false : undefined, // Handled carefully
+            created: editingNote ? editingNote.created : Date.now(),
             updated: Date.now()
-          }).eq('id', targetId).catch(console.error);
+          };
+          Promise.resolve(supabase.from('notes').update(toRow(updatedNote)).eq('id', targetId)).catch(console.error);
         }
       }, 1000);
 
       return () => clearTimeout(timer);
     }
-  }, [title, content, color, tag, priority, font, reminder]);
+  }, [title, content, color, customColor, tag, priority, status, font, reminder]);
 
   const handleClose = () => {
     // Cleanup blank auto-created cards
-    if (hasCreated && !title.trim() && !content.trim()) {
-      const targetId = savedId;
+    if (hasCreatedRef.current && !title.trim() && !content.trim()) {
+      const targetId = savedIdRef.current;
       setNotes(prev => prev.filter(n => n.id !== targetId));
       if (user && supabase) {
-        supabase.from('notes').delete().eq('id', targetId).catch(console.error);
+        Promise.resolve(supabase.from('notes').delete().eq('id', targetId)).catch(console.error);
       }
     }
     setEditingNote(null);
@@ -219,10 +260,14 @@ export function Modal({ type, onClose }) {
 
   const handleDelete = async () => {
     if (window.confirm('Delete this note?')) {
-      const targetId = savedId;
+      const targetId = savedIdRef.current;
       setNotes(prev => prev.filter(n => n.id !== targetId));
       if (user && supabase) {
-        await supabase.from('notes').delete().eq('id', targetId).catch(console.error);
+        try {
+          await supabase.from('notes').delete().eq('id', targetId);
+        } catch (e) {
+          console.error(e);
+        }
       }
       setEditingNote(null);
       onClose();
@@ -319,16 +364,54 @@ export function Modal({ type, onClose }) {
           {/* Color Picker */}
           <div className="form-group">
             <label>Color</label>
-            <div className="color-picker">
+            <div className="color-picker" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {COLORS.map(c => (
                 <div
                   key={c.id}
-                  className={`color-swatch ${color === c.id ? 'selected' : ''}`}
+                  className={`color-swatch ${color === c.id && !customColor ? 'selected' : ''}`}
                   style={{ backgroundColor: c.hex }}
-                  onClick={() => setColor(c.id)}
+                  onClick={() => {
+                    setColor(c.id);
+                    setCustomColor('');
+                  }}
                   title={c.id}
                 />
               ))}
+              {/* Custom Color Picker Swatch */}
+              <div
+                className={`color-swatch custom-swatch ${customColor ? 'selected' : ''}`}
+                style={{
+                  background: customColor || 'linear-gradient(135deg, #ff0000, #00ff00, #0000ff)',
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  color: '#fff',
+                  border: customColor ? '2px solid #fff' : 'none'
+                }}
+                title="Custom Color"
+                onClick={() => document.getElementById('custom-color-input').click()}
+              >
+                🌈
+                <input
+                  type="color"
+                  id="custom-color-input"
+                  value={customColor || '#7C3AED'}
+                  onChange={e => {
+                    setCustomColor(e.target.value);
+                    setColor('custom'); // standard color key ignored since customColor takes priority
+                  }}
+                  style={{
+                    position: 'absolute',
+                    opacity: 0,
+                    width: '100%',
+                    height: '100%',
+                    cursor: 'pointer'
+                  }}
+                />
+              </div>
             </div>
           </div>
 
@@ -342,6 +425,24 @@ export function Modal({ type, onClose }) {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Work Status */}
+          <div className="form-group">
+            <label>Work Status</label>
+            <select
+              className="glass-select"
+              value={status}
+              onChange={e => setStatus(e.target.value)}
+              style={{ width: '100%', padding: '8px 12px', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', outline: 'none' }}
+            >
+              <option value="none">— None —</option>
+              <option value="in-progress">🔄 In Progress</option>
+              <option value="completed">✅ Completed</option>
+              <option value="delayed">⏳ Delayed</option>
+              <option value="waiting">🕐 Waiting for Approval</option>
+              <option value="cancelled">❌ Cancelled</option>
+            </select>
           </div>
 
           {/* Reminder Date & Time */}
@@ -418,7 +519,7 @@ export function Modal({ type, onClose }) {
 
           <div className="modal-actions" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              {savedId && (
+              {savedIdRef.current && (
                 <button
                   type="button"
                   className="btn-cancel"

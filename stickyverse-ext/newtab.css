@@ -301,6 +301,7 @@ input, textarea { font-family: 'Inter', system-ui, sans-serif; outline: none; bo
   font-family: 'Inter', system-ui, sans-serif;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   transform-origin: center center;
+  overflow: visible;
 }
 
 /* Note card rotation variations */
@@ -467,6 +468,10 @@ input, textarea { font-family: 'Inter', system-ui, sans-serif; outline: none; bo
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.18s, visibility 0.18s;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 30;
 }
 .note-action {
   width: 24px;
@@ -487,9 +492,7 @@ input, textarea { font-family: 'Inter', system-ui, sans-serif; outline: none; bo
 .note-action.starred { color: #F59E0B; }
 .note-action.pinned-act { color: #EC4899; }
 
-.note-card:hover .note-actions-row,
-.note-inner:hover + .note-footer .note-actions-row,
-.note-footer:hover .note-actions-row { 
+.note-card:hover .note-actions-row { 
   opacity: 1 !important; 
   visibility: visible !important;
 }
@@ -1120,8 +1123,8 @@ input, textarea { font-family: 'Inter', system-ui, sans-serif; outline: none; bo
 #notes-masonry { 
   display: grid; 
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
-  gap: 16px; 
-  padding: 10px 20px 6px; 
+  gap: 20px; 
+  padding: 15px 25px 25px; 
 }
 .note-card {
   border-radius: var(--r-lg); 

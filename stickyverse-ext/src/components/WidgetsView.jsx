@@ -53,21 +53,6 @@ export function WidgetsView() {
         gap: '24px',
         marginTop: '24px'
       }}>
-        {/* Weather Widget */}
-        <div className="widget weather-widget" style={{ minHeight: '140px' }}>
-          <div className="weather-header">
-            <span className="weather-location">📍 Ahmedabad, IN</span>
-            <span className="weather-menu">⋮</span>
-          </div>
-          <div className="weather-main" style={{ marginTop: '12px' }}>
-            <span className="weather-icon" style={{ fontSize: '3rem' }}>⛅</span>
-            <div>
-              <div className="weather-temp" style={{ fontSize: '1.8rem', fontWeight: 700 }}>32°C</div>
-              <div className="weather-desc" style={{ color: 'rgba(255,255,255,0.6)' }}>Partly Cloudy</div>
-            </div>
-          </div>
-        </div>
-
         {/* Work Stats Widget */}
         <div className="widget stats-widget" style={{ minHeight: '140px' }}>
           <div className="widget-header" style={{ fontWeight: 600, color: '#fff', marginBottom: '16px' }}>

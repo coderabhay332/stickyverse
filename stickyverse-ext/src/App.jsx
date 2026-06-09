@@ -145,7 +145,7 @@ export default function App() {
         // Find which note was triggered and update Supabase if signed in
         const triggered = updated.find((n, i) => n.reminderTriggered && !notes[i].reminderTriggered);
         if (triggered && user && supabase) {
-          supabase.from('notes').update({ reminderTriggered: true }).eq('id', triggered.id).catch(console.error);
+          Promise.resolve(supabase.from('notes').update({ reminderTriggered: true }).eq('id', triggered.id)).catch(console.error);
         }
       }
     };

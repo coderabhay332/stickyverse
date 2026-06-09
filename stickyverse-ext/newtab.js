@@ -2180,14 +2180,14 @@ function buildNoteEl(note, idx) {
       <div class="note-footer">
         <span class="note-datetime" title="${fullDt}">📅 ${fullDt}</span>
         ${note.priority && note.priority !== 'none' ? `<span class="priority-badge priority-${note.priority}">${{low:'🟢 Low',medium:'🟡 Med',high:'🔴 High',urgent:'🚨 Urgent'}[note.priority]||''}</span>` : ''}
-        <div class="note-actions-row">
-          <button class="note-action ${starClass}" data-action="star" data-id="${note.id}" title="Star">☆</button>
-          <button class="note-action ${pinClass}" data-action="pin" data-id="${note.id}" title="Pin">📌</button>
-          <button class="note-action" data-action="status" data-id="${note.id}" title="Change status">🏷</button>
-          <button class="note-action" data-action="archive" data-id="${note.id}" title="Archive">📦</button>
-          <button class="note-action" data-action="del" data-id="${note.id}" title="Delete">×</button>
-        </div>
       </div>
+    </div>
+    <div class="note-actions-row">
+      <button class="note-action ${starClass}" data-action="star" data-id="${note.id}" title="Star">☆</button>
+      <button class="note-action ${pinClass}" data-action="pin" data-id="${note.id}" title="Pin">📌</button>
+      <button class="note-action" data-action="status" data-id="${note.id}" title="Change status">🏷</button>
+      <button class="note-action" data-action="archive" data-id="${note.id}" title="Archive">📦</button>
+      <button class="note-action" data-action="del" data-id="${note.id}" title="Delete">×</button>
     </div>`;
 
   // Checkbox events (event delegation on masonry)

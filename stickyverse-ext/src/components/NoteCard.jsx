@@ -173,7 +173,7 @@ export function NoteCard({ note, index }) {
             opacity: 0.85
           }}
         >
-          <span style={{ minWidth: '18px', textAlign: 'center', fontSize: '14.5px', fontWeight: 'bold' }}>-</span>
+          <span style={{ minWidth: '18px', textAlign: 'center', fontSize: '14.5px', fontWeight: 'bold' }}>•</span>
           <span>{cleanText || '\u00A0'}</span>
         </div>
       );
@@ -237,7 +237,14 @@ export function NoteCard({ note, index }) {
         </div>
       )}
 
-      <div className="note-inner" data-canvas-id={note.id}>
+      <div 
+        className="note-inner" 
+        data-canvas-id={note.id}
+        style={{
+          background: note.customColor ? note.customColor : undefined,
+          borderColor: note.customColor ? 'rgba(255, 255, 255, 0.15)' : undefined
+        }}
+      >
         {/* Status Badge */}
         {note.status && note.status !== 'none' && STATUS_MAP[note.status] && (
           <div 
@@ -260,7 +267,7 @@ export function NoteCard({ note, index }) {
         {note.tag === 'quote' ? (
           <div className="quote-body" style={{ textAlign: 'center', padding: '10px 0' }}>
             <div className="quote-marks" style={{ fontSize: '36px', color: '#EC4899', lineHeight: 0.8, marginBottom: 8, fontFamily: 'Georgia, serif' }}>”</div>
-            <div className="note-content" style={{ fontStyle: 'italic', fontSize: '16px', marginBottom: 12, fontFamily: 'Caveat, cursive', color: isDark ? '#ede9fe' : '#2a2050' }}>
+            <div className="note-content" style={{ fontStyle: 'italic', fontSize: '16px', marginBottom: 12, color: isDark ? '#ede9fe' : '#2a2050' }}>
               {note.content}
             </div>
             {note.title && (
@@ -327,57 +334,69 @@ export function NoteCard({ note, index }) {
         {/* Footer */}
         <div className="note-footer">
           <span className="note-date">📅 {fmtFullDate(note.created)}</span>
-          <div className="note-actions" style={{ opacity: hovered ? 1 : 0 }}>
-            <button 
-              className="note-action-btn" 
-              onClick={handleToggleCompleted} 
-              title={note.status === 'completed' ? 'Mark Active' : 'Mark Completed'}
-              style={{ color: note.status === 'completed' ? '#10B981' : 'inherit' }}
-            >
-              {note.status === 'completed' ? '✅' : '✔️'}
-            </button>
-            <button className="note-action-btn" onClick={handlePin} title={note.pinned ? 'Unpin' : 'Pin'}>
-              {note.pinned ? '📍' : '📌'}
-            </button>
-            <button className="note-action-btn" onClick={handleStar} title={note.starred ? 'Unstar' : 'Star'}>
-              {note.starred ? '⭐' : '☆'}
-            </button>
-            <div className="note-color-picker-wrapper" onClick={e => e.stopPropagation()}>
-              <button 
-                type="button" 
-                className="note-action-btn" 
-                title="Change Color"
-                onClick={e => e.preventDefault()}
-              >
-                🎨
-              </button>
-              <div className="note-color-palette-popover">
-                {Object.keys(COLOR_MAP).map(cName => (
-                  <div 
-                    key={cName}
-                    className="color-dot"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleColorChange(cName);
-                    }}
-                    style={{
-                      width: '12px',
-                      height: '12px',
-                      borderRadius: '50%',
-                      backgroundColor: COLOR_MAP[cName],
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      cursor: 'pointer'
-                    }}
-                    title={cName}
-                  />
-                ))}
-              </div>
-            </div>
-            <button className="note-action-btn" onClick={handleCycleStatus} title="Cycle Status">🏷️</button>
-            <button className="note-action-btn" onClick={handleArchive} title="Archive">📦</button>
-            <button className="note-action-btn" onClick={handleDelete} title="Delete">🗑️</button>
+        </div>
+      </div>
+
+      {/* Actions — outside note-inner so they aren't clipped */}
+      <div className="note-actions" style={{ opacity: hovered ? 1 : 0 }}>
+        <button 
+          className="note-action-btn" 
+          onClick={handleToggleCompleted} 
+          title={note.status === 'completed' ? 'Mark Active' : 'Mark Completed'}
+          style={{ color: note.status === 'completed' ? '#10B981' : 'inherit', fontWeight: 'bold', fontSize: '15px' }}
+        >
+          ✓
+        </button>
+        <button 
+          className="note-action-btn" 
+          onClick={handlePin} 
+          title={note.pinned ? 'Unpin' : 'Pin'}
+          style={{ opacity: note.pinned ? 1 : 0.4 }}
+        >
+          📌
+        </button>
+        <button 
+          className="note-action-btn" 
+          onClick={handleStar} 
+          title={note.starred ? 'Unstar' : 'Star'}
+          style={{ color: note.starred ? '#F59E0B' : 'inherit', fontSize: '15px' }}
+        >
+          {note.starred ? '★' : '☆'}
+        </button>
+        <div className="note-color-picker-wrapper" onClick={e => e.stopPropagation()}>
+          <button 
+            type="button" 
+            className="note-action-btn" 
+            title="Change Color"
+            onClick={e => e.preventDefault()}
+          >
+            🎨
+          </button>
+          <div className="note-color-palette-popover">
+            {Object.keys(COLOR_MAP).map(cName => (
+              <div 
+                key={cName}
+                className="color-dot"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleColorChange(cName);
+                }}
+                style={{
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  backgroundColor: COLOR_MAP[cName],
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  cursor: 'pointer'
+                }}
+                title={cName}
+              />
+            ))}
           </div>
         </div>
+        <button className="note-action-btn" onClick={handleCycleStatus} title="Cycle Status">🏷️</button>
+        <button className="note-action-btn" onClick={handleArchive} title="Archive">📦</button>
+        <button className="note-action-btn" onClick={handleDelete} title="Delete">🗑️</button>
       </div>
     </div>
   );

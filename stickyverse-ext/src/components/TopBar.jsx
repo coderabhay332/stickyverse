@@ -1,11 +1,56 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppContext } from '../App';
 
 export function TopBar() {
-  const { setModalOpen, setModalType, user, signIn, signOut, searchQuery, setSearchQuery } = useAppContext();
+  const { 
+    setModalOpen, 
+    setModalType, 
+    setEditingNote, 
+    user, 
+    supabase, 
+    searchQuery, 
+    setSearchQuery,
+    notes,
+    setNotes
+  } = useAppContext();
+
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const triggeredNotes = notes.filter(n => n.reminder && n.reminderTriggered);
+
+  const handleClearNotif = async (e, noteId) => {
+    e.stopPropagation();
+    const updatedNotes = notes.map(n => n.id === noteId ? { ...n, reminder: null, reminderTriggered: false } : n);
+    setNotes(updatedNotes);
+    if (user && supabase) {
+      await supabase.from('notes').update({ reminder: null, reminderTriggered: false }).eq('id', noteId);
+    }
+  };
+
+  const handleClearAllNotifs = async () => {
+    const updatedNotes = notes.map(n => n.reminderTriggered ? { ...n, reminder: null, reminderTriggered: false } : n);
+    setNotes(updatedNotes);
+    if (user && supabase) {
+      const triggeredIds = triggeredNotes.map(n => n.id);
+      for (const id of triggeredIds) {
+        try {
+          await supabase.from('notes').update({ reminder: null, reminderTriggered: false }).eq('id', id);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    }
+  };
+
+  const handleNotifClick = (note) => {
+    setEditingNote(note);
+    setModalType(note.tag || 'note');
+    setModalOpen(true);
+    setShowNotifications(false);
+  };
 
   return (
-    <div className="topbar">
+    <div className="topbar" style={{ position: 'relative' }}>
       {/* Search */}
       <div className="search-bar">
         <span className="search-icon">🔍</span>
@@ -19,40 +64,105 @@ export function TopBar() {
       </div>
 
       {/* Actions */}
-      <div className="topbar-actions">
+      <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* Notification Bell Button */}
         <button
           className="topbar-btn"
-          onClick={() => { setModalType('link'); setModalOpen(true); }}
-          title="Save current tab"
+          onClick={() => setShowNotifications(!showNotifications)}
+          style={{ position: 'relative', padding: '8px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', cursor: 'pointer', color: '#fff', fontSize: '13px' }}
+          title="Notifications"
         >
-          🔖 Save Tab
-        </button>
-
-        {user ? (
-          <>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              fontSize: 12, color: 'rgba(255,255,255,0.55)',
-              padding: '0 4px',
+          🔔 {triggeredNotes.length > 0 && (
+            <span style={{
+              position: 'absolute',
+              top: '-3px',
+              right: '-3px',
+              background: '#ef4444',
+              color: '#fff',
+              fontSize: '9px',
+              fontWeight: 'bold',
+              borderRadius: '50%',
+              width: '14px',
+              height: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}>
-              <span style={{
-                width: 7, height: 7, borderRadius: '50%',
-                background: '#22c55e',
-                boxShadow: '0 0 6px #22c55e',
-                display: 'inline-block'
-              }} />
-              <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {user.email}
-              </span>
-            </div>
-            <button className="topbar-btn" onClick={signOut}>Sign Out</button>
-          </>
-        ) : (
-          <button className="topbar-btn primary" onClick={signIn}>
-            Sign In ✨
-          </button>
-        )}
+              {triggeredNotes.length}
+            </span>
+          )}
+        </button>
       </div>
+
+      {showNotifications && (
+        <div className="notif-dropdown" style={{
+          position: 'absolute',
+          top: '52px',
+          right: '0px',
+          width: '320px',
+          background: 'rgba(26, 22, 40, 0.96)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: '12px',
+          padding: '16px',
+          boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
+          zIndex: 1000,
+          backdropFilter: 'blur(16px)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '8px' }}>
+            <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#fff' }}>🔔 Reminders</span>
+            {triggeredNotes.length > 0 && (
+              <button 
+                onClick={handleClearAllNotifs}
+                style={{ background: 'none', border: 'none', color: '#a78bfa', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
+              >
+                Clear All
+              </button>
+            )}
+          </div>
+          <div style={{ maxHeight: '240px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {triggeredNotes.length === 0 ? (
+              <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: '12px', padding: '16px 0' }}>
+                No active reminders
+              </div>
+            ) : (
+              triggeredNotes.map(n => (
+                <div 
+                  key={n.id} 
+                  onClick={() => handleNotifClick(n)}
+                  style={{
+                    display: 'flex', justifyContent: 'space-between', gap: '8px', 
+                    padding: '8px 10px', background: 'rgba(255,255,255,0.03)', 
+                    border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', 
+                    cursor: 'pointer', transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '12px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {n.title || 'Reminder'}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '2px' }}>
+                      {n.content || 'Your reminder is due'}
+                    </div>
+                  </div>
+                  <button 
+                    onClick={(e) => handleClearNotif(e, n.id)}
+                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '14px', alignSelf: 'center' }}
+                    onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
