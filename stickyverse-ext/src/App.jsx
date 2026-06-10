@@ -102,7 +102,7 @@ export default function App() {
 
   // Listen for background alarm messages (like water reminder fallback toasts and background notes updates)
   useEffect(() => {
-    const handleMessage = (message) => {
+    const handleMessage = (message, sender, sendResponse) => {
       if (message.type === 'SHOW_WATER_TOAST') {
         setToast({ title: message.title, body: message.body });
         // Clear toast automatically after 8 seconds
@@ -112,10 +112,12 @@ export default function App() {
             return prev;
           });
         }, 8000);
+        if (sendResponse) sendResponse({ success: true });
       } else if (message.type === 'NOTES_UPDATED_BACKGROUND') {
         if (message.notes && Array.isArray(message.notes)) {
           setNotes(message.notes);
         }
+        if (sendResponse) sendResponse({ success: true });
       }
     };
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {

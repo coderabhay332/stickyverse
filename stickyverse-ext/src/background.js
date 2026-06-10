@@ -98,15 +98,19 @@ const broadcastToNewTabs = (message) => {
     chrome.tabs.query({}, (tabs) => {
       console.log('StickyVerse Background: Broadcasting message to', tabs.length, 'tabs:', message);
       tabs.forEach(tab => {
-        if (tab.id) {
-          chrome.tabs.sendMessage(tab.id, message)
-            .then(() => {
-              console.log('StickyVerse Background: Successfully sent message to tab', tab.id, tab.url);
-            })
-            .catch((err) => {
-              // This is normal for system tabs, background tabs, etc.
-              console.log('StickyVerse Background: Skipped sending to tab', tab.id, 'Url:', tab.url, 'Reason:', err.message);
+        if (tab && tab.id) {
+          try {
+            chrome.tabs.sendMessage(tab.id, message, (response) => {
+              const err = chrome.runtime.lastError;
+              if (err) {
+                console.log('StickyVerse Background: Skipped sending to tab', tab.id, 'Url:', tab.url, 'Reason:', err.message);
+              } else {
+                console.log('StickyVerse Background: Successfully sent message to tab', tab.id, tab.url, response);
+              }
             });
+          } catch (e) {
+            console.error('StickyVerse Background: Synchronous error sending message to tab', tab.id, e);
+          }
         }
       });
     });
@@ -131,7 +135,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           // Show initial confirmation banner
           chrome.notifications.create('water_reminder_active', {
             type: 'basic',
-            iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+            iconUrl: 'icons/icon128.png',
             title: '💧 Water Reminder Active!',
             message: `We will remind you to drink water every ${interval} minutes.`,
             priority: 2
@@ -170,7 +174,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'water_reminder') {
     chrome.notifications.create('water_reminder_alert_' + Date.now(), {
       type: 'basic',
-      iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+      iconUrl: 'icons/icon128.png',
       title: '💧 Stay Hydrated!',
       message: "Time to drink some water and take a quick stretch break.",
       priority: 2
@@ -208,10 +212,14 @@ function checkNotesReminders() {
           // Trigger browser notification
           chrome.notifications.create('note_reminder_' + note.id + '_' + now, {
             type: 'basic',
-            iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+            iconUrl: 'icons/icon128.png',
             title: `⏰ Reminder: ${note.title || 'StickyVerse Task'}`,
             message: note.content || 'Your scheduled reminder has arrived!',
             priority: 2
+          }, (id) => {
+            if (chrome.runtime.lastError) {
+              console.error('Note Notification Error:', chrome.runtime.lastError.message);
+            }
           });
           hasUpdates = true;
           return { ...note, reminderTriggered: true, updated: now };
