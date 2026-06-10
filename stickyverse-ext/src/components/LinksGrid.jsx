@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../App';
 import { EmptyState } from './EmptyState';
+import { generateUUID } from '../utils/uuid';
 
 export function LinksGrid() {
   const { links, setLinks, searchQuery, user, supabase } = useAppContext();
@@ -18,7 +19,7 @@ export function LinksGrid() {
 
     setSaving(true);
     const newLink = {
-      id: `link_${Date.now()}`,
+      id: generateUUID(),
       url: linkUrl,
       title: customTitle.trim() || hostname,
       host: hostname,
@@ -28,6 +29,20 @@ export function LinksGrid() {
     };
 
     setLinks(prev => [newLink, ...prev]);
+
+    if (user && supabase) {
+      Promise.resolve(supabase.from('links').insert({
+        id: newLink.id,
+        user_id: user.id,
+        url: newLink.url,
+        title: newLink.title,
+        host: newLink.host,
+        favicon: newLink.favicon,
+        description: newLink.note || null,
+        saved_at: new Date(newLink.created).toISOString(),
+      })).catch(console.error);
+    }
+
     setUrl('');
     setCustomTitle('');
     setSaving(false);
@@ -35,6 +50,9 @@ export function LinksGrid() {
 
   const handleDelete = (id) => {
     setLinks(prev => prev.filter(l => l.id !== id));
+    if (user && supabase) {
+      Promise.resolve(supabase.from('links').delete().eq('id', id)).catch(console.error);
+    }
   };
 
   const filteredLinks = links.filter(link => {

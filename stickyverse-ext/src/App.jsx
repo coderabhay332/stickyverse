@@ -208,6 +208,152 @@ export default function App() {
     }
   }, [waterReminder, waterInterval]);
 
+  // Fetch notes and links from Supabase when user logs in/updates
+  useEffect(() => {
+    if (!supabase || !user) return;
+
+    let isMounted = true;
+
+    const fetchCloudData = async () => {
+      try {
+        console.log('Fetching user data from Supabase...');
+        // 1. Fetch notes
+        const { data: cloudNotes, error: notesError } = await supabase
+          .from('notes')
+          .select('*')
+          .eq('user_id', user.id);
+
+        if (notesError) throw notesError;
+
+        // 2. Fetch links
+        const { data: cloudLinks, error: linksError } = await supabase
+          .from('links')
+          .select('*')
+          .eq('user_id', user.id);
+
+        if (linksError) throw linksError;
+
+        if (!isMounted) return;
+
+        // Map cloud notes to local format
+        if (cloudNotes) {
+          const mappedNotes = cloudNotes.map(row => ({
+            id: row.id,
+            title: row.title || '',
+            content: row.content || '',
+            color: row.color || 'purple',
+            customColor: null,
+            tag: row.tag || 'note',
+            priority: row.priority || 'medium',
+            status: row.status || 'none',
+            font: 'sans',
+            reminder: row.reminder || null,
+            reminderTriggered: !!row.reminderTriggered,
+            pinned: !!row.pinned,
+            starred: !!row.starred,
+            archived: !!row.archived,
+            created: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+            updated: row.updated_at ? new Date(row.updated_at).getTime() : Date.now(),
+          }));
+
+          setNotes(prev => {
+            // Filter out default demo notes from local storage if we have real cloud notes
+            const filteredLocal = prev.filter(local => !local.id.startsWith('demo'));
+            if (filteredLocal.length === 0) return mappedNotes;
+
+            const merged = [...mappedNotes];
+            filteredLocal.forEach(local => {
+              const cloud = merged.find(c => c.id === local.id);
+              if (!cloud) {
+                merged.push(local);
+                // Upload local note to cloud
+                supabase.from('notes').insert({
+                  id: local.id,
+                  user_id: user.id,
+                  title: local.title || null,
+                  content: local.content,
+                  type: local.tag === 'checklist' ? 'checklist' : local.tag === 'quote' ? 'quote' : 'note',
+                  style: local.tag === 'quote' ? 'polaroid' : 'regular',
+                  color: ['purple', 'yellow', 'pink', 'green', 'blue', 'cream', 'dark'].includes(local.color) ? local.color : 'purple',
+                  tag: local.tag || 'note',
+                  status: local.status || 'none',
+                  priority: local.priority || 'medium',
+                  pinned: !!local.pinned,
+                  starred: !!local.starred,
+                  created_at: new Date(local.created).toISOString(),
+                  updated_at: new Date(local.updated).toISOString(),
+                }).then(({ error }) => {
+                  if (error) console.error('Failed to sync unsynced local note:', error.message);
+                });
+              } else if (local.updated > cloud.updated) {
+                const idx = merged.indexOf(cloud);
+                merged[idx] = local;
+                supabase.from('notes').update({
+                  title: local.title || null,
+                  content: local.content,
+                  color: ['purple', 'yellow', 'pink', 'green', 'blue', 'cream', 'dark'].includes(local.color) ? local.color : 'purple',
+                  tag: local.tag || 'note',
+                  status: local.status || 'none',
+                  priority: local.priority || 'medium',
+                  pinned: !!local.pinned,
+                  starred: !!local.starred,
+                  updated_at: new Date(local.updated).toISOString(),
+                }).eq('id', local.id).then(({ error }) => {
+                  if (error) console.error('Failed to sync newer local note:', error.message);
+                });
+              }
+            });
+            return merged;
+          });
+        }
+
+        // Map cloud links to local format
+        if (cloudLinks) {
+          const mappedLinks = cloudLinks.map(row => ({
+            id: row.id,
+            url: row.url,
+            title: row.title,
+            host: row.host,
+            favicon: row.favicon,
+            note: row.description || '',
+            created: row.saved_at ? new Date(row.saved_at).getTime() : Date.now(),
+          }));
+
+          setLinks(prev => {
+            if (prev.length === 0) return mappedLinks;
+            const merged = [...mappedLinks];
+            prev.forEach(local => {
+              const cloud = merged.find(c => c.id === local.id);
+              if (!cloud) {
+                merged.push(local);
+                supabase.from('links').insert({
+                  id: local.id,
+                  user_id: user.id,
+                  url: local.url,
+                  title: local.title,
+                  host: local.host,
+                  favicon: local.favicon,
+                  description: local.note || null,
+                  saved_at: new Date(local.created).toISOString(),
+                }).then(({ error }) => {
+                  if (error) console.error('Failed to sync unsynced local link:', error.message);
+                });
+              }
+            });
+            return merged;
+          });
+        }
+
+      } catch (err) {
+        console.error('Failed to fetch cloud data:', err.message);
+      }
+    };
+
+    fetchCloudData();
+
+    return () => { isMounted = false; };
+  }, [supabase, user]);
+
   // Spacebar key listener to create new note
   useEffect(() => {
     const handleKeyDown = (e) => {

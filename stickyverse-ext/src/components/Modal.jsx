@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../App';
+import { generateUUID } from '../utils/uuid';
 
 const TAG_COLORS = { note: 'purple', task: 'blue', checklist: 'blue', idea: 'yellow', quote: 'green', link: 'pink' };
 const TAGS = ['note', 'task', 'checklist', 'idea', 'quote'];
@@ -177,7 +178,7 @@ export function Modal({ type, onClose }) {
     });
 
     if (isNew) {
-      targetId = `note_${Date.now()}_${Math.random().toString(36).substr(2,6)}`;
+      targetId = generateUUID();
       savedIdRef.current = targetId;
       hasCreatedRef.current = true;
 
