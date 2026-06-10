@@ -14,6 +14,7 @@ import { TemplatesView } from './components/TemplatesView';
 import { WidgetsView } from './components/WidgetsView';
 import { useSupabase } from './hooks/useSupabase';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { generateUUID } from './utils/uuid';
 import './styles/globals.css';
 
 // ─── Theme Definitions ─────────────────────────────────────────────────────────
@@ -227,7 +228,7 @@ export default function App() {
             customColor: row.items?.customColor || null,
             fontColor: row.items?.fontColor || null,
             tag: row.tag || 'note',
-            priority: row.priority || 'medium',
+            priority: row.priority || 'none',
             status: row.status || 'none',
             font: 'sans',
             reminder: row.reminder || null,
@@ -240,8 +241,16 @@ export default function App() {
           }));
 
           setNotes(prev => {
+            // Sanitize local note IDs from template generators (starts with 'note_')
+            const sanitizedPrev = prev.map(local => {
+              if (local.id && local.id.startsWith('note_')) {
+                return { ...local, id: generateUUID() };
+              }
+              return local;
+            });
+
             // Filter out default demo notes from local storage if we have real cloud notes
-            const filteredLocal = prev.filter(local => !local.id.startsWith('demo'));
+            const filteredLocal = sanitizedPrev.filter(local => !local.id.startsWith('demo'));
             if (filteredLocal.length === 0) return mappedNotes;
 
             const merged = [...mappedNotes];
@@ -250,6 +259,7 @@ export default function App() {
               if (!cloud) {
                 merged.push(local);
                 // Upload local note to cloud
+                const priorityValue = local.priority === 'none' ? null : (local.priority || 'medium');
                 supabase.from('notes').insert({
                   id: local.id,
                   user_id: user.id,
@@ -260,7 +270,7 @@ export default function App() {
                   color: ['purple', 'yellow', 'pink', 'green', 'blue', 'cream', 'dark'].includes(local.color) ? local.color : 'purple',
                   tag: local.tag || 'note',
                   status: local.status || 'none',
-                  priority: local.priority || 'medium',
+                  priority: priorityValue,
                   pinned: !!local.pinned,
                   starred: !!local.starred,
                   items: {
@@ -275,13 +285,14 @@ export default function App() {
               } else if (local.updated > cloud.updated) {
                 const idx = merged.indexOf(cloud);
                 merged[idx] = local;
+                const priorityValue = local.priority === 'none' ? null : (local.priority || 'medium');
                 supabase.from('notes').update({
                   title: local.title || null,
                   content: local.content,
                   color: ['purple', 'yellow', 'pink', 'green', 'blue', 'cream', 'dark'].includes(local.color) ? local.color : 'purple',
                   tag: local.tag || 'note',
                   status: local.status || 'none',
-                  priority: local.priority || 'medium',
+                  priority: priorityValue,
                   pinned: !!local.pinned,
                   starred: !!local.starred,
                   items: {

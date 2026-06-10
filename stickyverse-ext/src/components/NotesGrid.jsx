@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useAppContext } from '../App';
 import { NoteCard } from './NoteCard';
 import { EmptyState } from './EmptyState';
+import { generateUUID } from '../utils/uuid';
 
 const TEMPLATES = [
   { id: 'daily_plan',    title: '☀️ Daily Plan',    em: '☀️', desc: 'Focus, tasks, meetings, and goals' },
@@ -237,12 +238,12 @@ export function NotesGrid() {
     const template = templates[type];
     if (template) {
       const newNote = {
-        id: `note_${Date.now()}_${Math.random().toString(36).substr(2,6)}`,
+        id: generateUUID(),
         title: template.title,
         content: template.content,
         color: template.color,
         tag: template.tag,
-        priority: template.priority,
+        priority: template.priority || 'none',
         status: 'none',
         pinned: false,
         starred: false,
@@ -254,7 +255,29 @@ export function NotesGrid() {
       setNotes(prev => [newNote, ...prev]);
 
       if (user && supabase) {
-        try { await supabase.from('notes').insert(newNote); } catch (e) { console.log('Failed to sync template note:', e.message); }
+        const row = {
+          id: newNote.id,
+          user_id: user.id,
+          title: newNote.title || null,
+          content: newNote.content,
+          type: newNote.tag === 'checklist' ? 'checklist' : newNote.tag === 'quote' ? 'quote' : 'note',
+          style: newNote.tag === 'quote' ? 'polaroid' : 'regular',
+          color: ['purple', 'yellow', 'pink', 'green', 'blue', 'cream', 'dark'].includes(newNote.color) ? newNote.color : 'purple',
+          tag: newNote.tag || 'note',
+          status: newNote.status || 'none',
+          priority: newNote.priority === 'none' ? null : (newNote.priority || 'medium'),
+          pinned: !!newNote.pinned,
+          starred: !!newNote.starred,
+          items: {},
+          created_at: new Date(newNote.created).toISOString(),
+          updated_at: new Date(newNote.updated).toISOString(),
+        };
+        try {
+          const { error } = await supabase.from('notes').insert(row);
+          if (error) console.error('Failed to sync template note:', error.message);
+        } catch (e) {
+          console.error('Failed to sync template note:', e.message);
+        }
       }
     }
   };

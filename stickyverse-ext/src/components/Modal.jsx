@@ -290,7 +290,7 @@ export function Modal({ type, onClose }) {
       color: ['purple', 'yellow', 'pink', 'green', 'blue', 'cream', 'dark'].includes(n.color) ? n.color : 'purple', // db enum valid value
       tag: n.tag || 'note',
       status: n.status || 'none',
-      priority: n.priority || 'medium',
+      priority: n.priority === 'none' ? null : (n.priority || 'medium'),
       pinned: !!n.pinned,
       starred: !!n.starred,
       items: {
