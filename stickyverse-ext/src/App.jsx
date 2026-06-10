@@ -55,6 +55,13 @@ export default function App() {
   const [waterInterval, setWaterInterval] = useLocalStorage('sv_water_interval', 120);
   const [toast, setToast] = useState(null);
 
+  const [priorityColors, setPriorityColors] = useLocalStorage('sv_priority_colors', {
+    low: '#22c55e',
+    medium: '#eab308',
+    high: '#f97316',
+    urgent: '#ef4444',
+  });
+
   // Pomodoro Timer State
   const [pomodoroTime, setPomodoroTime] = useState(25 * 60);
   const [pomodoroTotal] = useState(25 * 60);
@@ -92,7 +99,7 @@ export default function App() {
     setIsPomodoroRunning(v => !v);
   };
 
-  // Listen for background alarm messages (like water reminder fallback toasts)
+  // Listen for background alarm messages (like water reminder fallback toasts and background notes updates)
   useEffect(() => {
     const handleMessage = (message) => {
       if (message.type === 'SHOW_WATER_TOAST') {
@@ -104,13 +111,17 @@ export default function App() {
             return prev;
           });
         }, 8000);
+      } else if (message.type === 'NOTES_UPDATED_BACKGROUND') {
+        if (message.notes && Array.isArray(message.notes)) {
+          setNotes(message.notes);
+        }
       }
     };
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
       chrome.runtime.onMessage.addListener(handleMessage);
       return () => chrome.runtime.onMessage.removeListener(handleMessage);
     }
-  }, []);
+  }, [setNotes]);
 
   // Apply theme CSS vars & wallpaper
   useEffect(() => {
@@ -144,52 +155,23 @@ export default function App() {
     document.body.classList.add(`body-font-${globalFont}`);
   }, [globalFont]);
 
-  // Request notifications permission and start background scheduler for task reminders
+  // Sync and mirror notes to chrome.storage.local for background alarms
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      if (Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.set({ sv_notes: notes });
     }
+  }, [notes]);
 
-    const checkReminders = () => {
-      const now = Date.now();
-      let hasUpdates = false;
-
-      const updated = notes.map(n => {
-        if (n.reminder && !n.reminderTriggered) {
-          const remTime = new Date(n.reminder).getTime();
-          if (remTime <= now) {
-            // Trigger browser notification
-            if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification(`⏰ Reminder: ${n.title || 'StickyVerse Task'}`, {
-                body: n.content || 'Your scheduled reminder has arrived!',
-                icon: 'icons/icon32.png'
-              });
-            } else {
-              // Fallback
-              alert(`⏰ Reminder: ${n.title || 'StickyVerse Task'}\n\n${n.content || ''}`);
-            }
-            hasUpdates = true;
-            return { ...n, reminderTriggered: true };
-          }
+  // Read initial notes from chrome.storage.local on mount (in case background updated them)
+  useEffect(() => {
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.get(['sv_notes'], (res) => {
+        if (res.sv_notes && Array.isArray(res.sv_notes)) {
+          setNotes(res.sv_notes);
         }
-        return n;
       });
-
-      if (hasUpdates) {
-        setNotes(updated);
-        // Find which note was triggered and update Supabase if signed in
-        const triggered = updated.find((n, i) => n.reminderTriggered && !notes[i].reminderTriggered);
-        if (triggered && user && supabase) {
-          Promise.resolve(supabase.from('notes').update({ reminderTriggered: true }).eq('id', triggered.id)).catch(console.error);
-        }
-      }
-    };
-
-    const interval = setInterval(checkReminders, 10000); // check every 10s
-    return () => clearInterval(interval);
-  }, [notes, user, supabase]);
+    }
+  }, []);
 
   // Sync water reminder settings to background service worker
   useEffect(() => {
@@ -242,7 +224,8 @@ export default function App() {
             title: row.title || '',
             content: row.content || '',
             color: row.color || 'purple',
-            customColor: null,
+            customColor: row.items?.customColor || null,
+            fontColor: row.items?.fontColor || null,
             tag: row.tag || 'note',
             priority: row.priority || 'medium',
             status: row.status || 'none',
@@ -280,6 +263,10 @@ export default function App() {
                   priority: local.priority || 'medium',
                   pinned: !!local.pinned,
                   starred: !!local.starred,
+                  items: {
+                    customColor: local.customColor || null,
+                    fontColor: local.fontColor || null
+                  },
                   created_at: new Date(local.created).toISOString(),
                   updated_at: new Date(local.updated).toISOString(),
                 }).then(({ error }) => {
@@ -297,6 +284,10 @@ export default function App() {
                   priority: local.priority || 'medium',
                   pinned: !!local.pinned,
                   starred: !!local.starred,
+                  items: {
+                    customColor: local.customColor || null,
+                    fontColor: local.fontColor || null
+                  },
                   updated_at: new Date(local.updated).toISOString(),
                 }).eq('id', local.id).then(({ error }) => {
                   if (error) console.error('Failed to sync newer local note:', error.message);
@@ -426,6 +417,7 @@ export default function App() {
     waterReminder, setWaterReminder,
     waterInterval, setWaterInterval,
     user, supabase, signIn, signOut,
+    priorityColors, setPriorityColors,
     THEMES,
     premiumUnlocked, setPremiumUnlocked,
     showPremiumModal, setShowPremiumModal,

@@ -28,8 +28,19 @@ const fmtFullDate = ts => {
   return `${day} ${month} ${year} · ${timeStr}`;
 };
 
+const getContrastColor = (hex) => {
+  if (!hex) return '#ffffff';
+  const color = hex.replace('#', '');
+  if (color.length !== 6) return '#ffffff';
+  const r = parseInt(color.substr(0, 2), 16);
+  const g = parseInt(color.substr(2, 2), 16);
+  const b = parseInt(color.substr(4, 2), 16);
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness > 160 ? '#1e1b4b' : '#ffffff';
+};
+
 export function NoteCard({ note, index }) {
-  const { setNotes, user, supabase, setEditingNote, setModalType, setModalOpen } = useAppContext();
+  const { setNotes, setLinks, user, supabase, setEditingNote, setModalType, setModalOpen, priorityColors } = useAppContext();
   const [hovered, setHovered] = useState(false);
 
   const bgColor = COLOR_MAP[note.color] || '#EDE9FE';
@@ -62,8 +73,13 @@ export function NoteCard({ note, index }) {
 
   const handleDelete = async (e) => {
     e.stopPropagation();
-    setNotes(prev => prev.filter(n => n.id !== note.id));
-    if (user && supabase) await supabase.from('notes').delete().eq('id', note.id);
+    if (note.isLinkVaultItem) {
+      setLinks(prev => prev.filter(l => l.id !== note.id));
+      if (user && supabase) await supabase.from('links').delete().eq('id', note.id);
+    } else {
+      setNotes(prev => prev.filter(n => n.id !== note.id));
+      if (user && supabase) await supabase.from('notes').delete().eq('id', note.id);
+    }
   };
 
   const handleCycleStatus = async (e) => {
@@ -264,10 +280,56 @@ export function NoteCard({ note, index }) {
         )}
 
         {/* Content Body */}
-        {note.tag === 'quote' ? (
+        {note.tag === 'link' ? (
+          <div className="link-body" style={{ padding: '4px 0' }}>
+            <a
+              href={note.content}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="note-link-anchor"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                textDecoration: 'none',
+                color: note.fontColor ? note.fontColor : (isDark ? '#ede9fe' : '#1e1b4b'),
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                padding: '10px',
+                borderRadius: '8px',
+                marginBottom: '8px',
+                transition: 'background 0.2s'
+              }}
+            >
+              {note.favicon ? (
+                <img
+                  src={note.favicon}
+                  alt=""
+                  style={{ width: '24px', height: '24px', borderRadius: '4px' }}
+                  onError={e => { e.target.style.display = 'none'; }}
+                />
+              ) : (
+                <span style={{ fontSize: '20px' }}>🌐</span>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 'bold', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {note.title || 'Untitled Link'}
+                </div>
+                <div style={{ fontSize: '11px', opacity: 0.6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {note.host || note.content}
+                </div>
+              </div>
+            </a>
+            {note.note && (
+              <div style={{ fontSize: '12px', fontStyle: 'italic', opacity: 0.85, paddingLeft: '4px', borderLeft: '2.5px solid var(--theme-accent, #7C3AED)', marginTop: '8px', color: note.fontColor ? note.fontColor : undefined }}>
+                {note.note}
+              </div>
+            )}
+          </div>
+        ) : note.tag === 'quote' ? (
           <div className="quote-body" style={{ textAlign: 'center', padding: '10px 0' }}>
             <div className="quote-marks" style={{ fontSize: '36px', color: '#EC4899', lineHeight: 0.8, marginBottom: 8, fontFamily: 'Georgia, serif' }}>”</div>
-            <div className="note-content" style={{ fontStyle: 'italic', fontSize: '16px', marginBottom: 12, color: isDark ? '#ede9fe' : '#2a2050' }}>
+            <div className="note-content" style={{ fontStyle: 'italic', fontSize: '16px', marginBottom: 12, color: note.fontColor ? note.fontColor : (isDark ? '#ede9fe' : '#2a2050') }}>
               {note.content}
             </div>
             {note.title && (
@@ -280,14 +342,14 @@ export function NoteCard({ note, index }) {
           <>
             {/* Title */}
             {note.title && (
-              <div className="note-title">
+              <div className="note-title" style={{ color: note.fontColor ? note.fontColor : undefined }}>
                 {note.title}
               </div>
             )}
 
             {/* Regular content */}
             {renderedContentLines.length > 0 && (
-              <div className="note-content" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <div className="note-content" style={{ display: 'flex', flexDirection: 'column', gap: '2px', color: note.fontColor ? note.fontColor : undefined }}>
                 {renderedContentLines}
               </div>
             )}
@@ -297,8 +359,23 @@ export function NoteCard({ note, index }) {
         {/* Priority Badge */}
         {note.priority && note.priority !== 'none' && (
           <div style={{ marginTop: 8 }}>
-            <span className={`priority-badge priority-${note.priority}`}>
-              {{ low: '🟢 Low', medium: '🟡 Med', high: '🔴 High', urgent: '🚨 Urgent' }[note.priority] || note.priority.toUpperCase()}
+            <span
+              className="priority-badge"
+              style={{
+                backgroundColor: priorityColors ? priorityColors[note.priority] : undefined,
+                color: priorityColors && priorityColors[note.priority] ? getContrastColor(priorityColors[note.priority]) : undefined,
+                border: '1px solid rgba(255,255,255,0.15)',
+                padding: '3px 8px',
+                borderRadius: '12px',
+                fontSize: '10px',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                boxShadow: priorityColors && priorityColors[note.priority] ? `0 2px 6px ${priorityColors[note.priority]}25` : undefined
+              }}
+            >
+              {{ low: '🟢 Low', medium: '🟡 Med', high: '🟠 High', urgent: '🚨 Urgent' }[note.priority] || note.priority.toUpperCase()}
             </span>
           </div>
         )}
@@ -339,63 +416,78 @@ export function NoteCard({ note, index }) {
 
       {/* Actions — outside note-inner so they aren't clipped */}
       <div className="note-actions" style={{ opacity: hovered ? 1 : 0 }}>
-        <button 
-          className="note-action-btn" 
-          onClick={handleToggleCompleted} 
-          title={note.status === 'completed' ? 'Mark Active' : 'Mark Completed'}
-          style={{ color: note.status === 'completed' ? '#10B981' : 'inherit', fontWeight: 'bold', fontSize: '15px' }}
-        >
-          ✓
-        </button>
-        <button 
-          className="note-action-btn" 
-          onClick={handlePin} 
-          title={note.pinned ? 'Unpin' : 'Pin'}
-          style={{ opacity: note.pinned ? 1 : 0.4 }}
-        >
-          📌
-        </button>
-        <button 
-          className="note-action-btn" 
-          onClick={handleStar} 
-          title={note.starred ? 'Unstar' : 'Star'}
-          style={{ color: note.starred ? '#F59E0B' : 'inherit', fontSize: '15px' }}
-        >
-          {note.starred ? '★' : '☆'}
-        </button>
-        <div className="note-color-picker-wrapper" onClick={e => e.stopPropagation()}>
-          <button 
-            type="button" 
-            className="note-action-btn" 
-            title="Change Color"
-            onClick={e => e.preventDefault()}
+        {!note.isLinkVaultItem ? (
+          <>
+            <button 
+              className="note-action-btn" 
+              onClick={handleToggleCompleted} 
+              title={note.status === 'completed' ? 'Mark Active' : 'Mark Completed'}
+              style={{ color: note.status === 'completed' ? '#10B981' : 'inherit', fontWeight: 'bold', fontSize: '15px' }}
+            >
+              ✓
+            </button>
+            <button 
+              className="note-action-btn" 
+              onClick={handlePin} 
+              title={note.pinned ? 'Unpin' : 'Pin'}
+              style={{ opacity: note.pinned ? 1 : 0.4 }}
+            >
+              📌
+            </button>
+            <button 
+              className="note-action-btn" 
+              onClick={handleStar} 
+              title={note.starred ? 'Unstar' : 'Star'}
+              style={{ color: note.starred ? '#F59E0B' : 'inherit', fontSize: '15px' }}
+            >
+              {note.starred ? '★' : '☆'}
+            </button>
+            <div className="note-color-picker-wrapper" onClick={e => e.stopPropagation()}>
+              <button 
+                type="button" 
+                className="note-action-btn" 
+                title="Change Color"
+                onClick={e => e.preventDefault()}
+              >
+                🎨
+              </button>
+              <div className="note-color-palette-popover">
+                {Object.keys(COLOR_MAP).map(cName => (
+                  <div 
+                    key={cName}
+                    className="color-dot"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleColorChange(cName);
+                    }}
+                    style={{
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '50%',
+                      backgroundColor: COLOR_MAP[cName],
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      cursor: 'pointer'
+                    }}
+                    title={cName}
+                  />
+                ))}
+              </div>
+            </div>
+            <button className="note-action-btn" onClick={handleCycleStatus} title="Cycle Status">🏷️</button>
+            <button className="note-action-btn" onClick={handleArchive} title="Archive">📦</button>
+          </>
+        ) : (
+          <a
+            href={note.content}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="note-action-btn"
+            title="Open Link"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}
           >
-            🎨
-          </button>
-          <div className="note-color-palette-popover">
-            {Object.keys(COLOR_MAP).map(cName => (
-              <div 
-                key={cName}
-                className="color-dot"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleColorChange(cName);
-                }}
-                style={{
-                  width: '12px',
-                  height: '12px',
-                  borderRadius: '50%',
-                  backgroundColor: COLOR_MAP[cName],
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  cursor: 'pointer'
-                }}
-                title={cName}
-              />
-            ))}
-          </div>
-        </div>
-        <button className="note-action-btn" onClick={handleCycleStatus} title="Cycle Status">🏷️</button>
-        <button className="note-action-btn" onClick={handleArchive} title="Archive">📦</button>
+            🔗
+          </a>
+        )}
         <button className="note-action-btn" onClick={handleDelete} title="Delete">🗑️</button>
       </div>
     </div>

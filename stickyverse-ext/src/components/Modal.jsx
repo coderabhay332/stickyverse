@@ -14,49 +14,170 @@ const COLORS = [
   { id: 'cream',  hex: '#FFFBEB' },
   { id: 'dark',   hex: '#1E1B4B' },
 ];
+const FONT_COLORS = [
+  { id: 'default', label: 'Default', hex: 'transparent' },
+  { id: 'dark',    label: 'Dark Indigo', hex: '#1E1B4B' },
+  { id: 'gray',    label: 'Charcoal', hex: '#374151' },
+  { id: 'purple',  label: 'Purple', hex: '#5B21B6' },
+  { id: 'blue',    label: 'Blue', hex: '#1E3A8A' },
+  { id: 'green',   label: 'Green', hex: '#065F46' },
+  { id: 'red',     label: 'Red', hex: '#991B1B' },
+];
 const PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'];
 
 const TEMPLATES_MAP = {
-  meeting: {
-    title: 'Meeting Notes 📝',
-    content: '• Attendees & Time\n• Agenda Items\n• Key Decisions\n• Action Items\n• Follow-up Tasks',
-    color: 'purple',
-    tag: 'task',
-    priority: 'none'
-  },
-  project: {
-    title: 'Project Plan 🚀',
-    content: '• Define Objectives\n• Research & Planning\n• Create Timeline\n• Assign Tasks\n• Set Milestones',
-    color: 'blue',
-    tag: 'task',
-    priority: 'medium'
-  },
-  daily: {
-    title: 'Daily Review ☀️',
-    content: '• What went well today?\n• What could be improved?\n• Top priorities for tomorrow\n• Lessons learned',
+  daily_plan: {
+    title: '☀️ Daily Plan',
+    content: "Today's Focus:\n\nTop 3 tasks:\n→ \n→ \n→ \n\nMeetings today:\n\n\nEnd of day goal:",
     color: 'yellow',
+    tag: 'task',
+    priority: 'high'
+  },
+  weekly_review: {
+    title: '📅 Weekly Review',
+    content: "Week of:\n\nWhat went well:\n→ \n→ \n\nWhat didn't go well:\n→ \n→ \n\nBiggest lesson this week:\n\nDidn't finish — carry forward:\n→ \n\nNext week's priority:",
+    color: 'purple',
     tag: 'note',
     priority: 'none'
   },
-  habit: {
-    title: 'Habit Tracker ✅',
-    content: '• Morning Routine\n• Exercise\n• Reading\n• Meditation\n• Healthy Meals',
-    color: 'green',
-    tag: 'task',
+  monthly_review: {
+    title: '📅 Monthly Review',
+    content: "Month:\n\nTop 3 wins:\n→ \n→ \n→ \n\nTop 3 failures and lessons:\n→ \n→ \n→ \n\nRevenue / key metric:\n\nHabits kept:\n\nHabits broken:\n\nFocus for next month:",
+    color: 'blue',
+    tag: 'note',
     priority: 'none'
   },
-  learning: {
-    title: 'Learning Log 📚',
-    content: 'What I learned today:\n\nKey concepts:\n- \n- \n- \n\nQuestions to explore:\n- \n- \n- ',
+  meeting_notes: {
+    title: '🎙️ Meeting Notes',
+    content: "Meeting with:\nDate:\nTime:\n\nAgenda:\n→ \n→ \n\nKey points discussed:\n→ \n→ \n\nDecisions made:\n→ \n\nAction items:\n→ (owner)\n→ (owner)\n\nNext meeting:",
+    color: 'purple',
+    tag: 'task',
+    priority: 'medium'
+  },
+  one_on_one: {
+    title: '👥 1 on 1 Meeting',
+    content: "Meeting with:\nDate:\n\nTheir updates:\n→ \n→ \n\nMy updates:\n→ \n→ \n\nChallenges they raised:\n\nFeedback I want to give:\n\nAction items:\n→ \n→ \n\nFollow up date:",
+    color: 'purple',
+    tag: 'note',
+    priority: 'none'
+  },
+  client_brief: {
+    title: '💼 Client Brief',
+    content: "Client name:\nProject:\nDate:\n\nWhat they want:\n\nWhat they don't want:\n\nDeadline:\n\nBudget:\n\nDeliverables:\n→ \n→ \n\nSuccess looks like:\n\nNext step:",
+    color: 'pink',
+    tag: 'task',
+    priority: 'high'
+  },
+  status_update: {
+    title: '📊 Status Update',
+    content: "Project:\nDate:\nReporting to:\n\nProgress this week:\n→ \n→ \n\nWhat's blocked:\n→ \n\nWhat's next:\n→ \n→ \n\nRisks:\n\nOverall status: On Track / At Risk / Behind",
+    color: 'green',
+    tag: 'task',
+    priority: 'medium'
+  },
+  okrs: {
+    title: '🎯 OKRs',
+    content: "Quarter:\n\nObjective 1:\nKR1:\nKR2:\nKR3:\n\nObjective 2:\nKR1:\nKR2:\nKR3:\n\nObjective 3:\nKR1:\nKR2:\nKR3:\n\nEnd of quarter reflection:",
+    color: 'blue',
+    tag: 'task',
+    priority: 'high'
+  },
+  brain_dump: {
+    title: '⚡ Brain Dump',
+    content: "Date:\nEverything on my mind right now:\n→ \n→ \n→ \n→ \n→ \n\nMost important from above:\n\nWhat I can ignore:\n\nWhat I need to act on today:",
     color: 'orange',
     tag: 'note',
     priority: 'none'
   },
-  gratitude: {
-    title: 'Gratitude Journal 🙏',
-    content: 'Today I am grateful for:\n\n1. \n2. \n3.\n\nSmall wins today:\n- \n- ',
+  morning_routine: {
+    title: '🌅 Morning Routine',
+    content: "Today is:\n\nGratitude — 1 thing I am thankful for:\n\nHow I am feeling:\n\nToday's focus:\n\nTop 3 tasks:\n→ \n→ \n→ \n\nWho do I need to reach out to:\n\nIntention for today:",
+    color: 'yellow',
+    tag: 'note',
+    priority: 'none'
+  },
+  evening_reflection: {
+    title: '🌙 Evening Reflection',
+    content: "Date:\n\nWhat I accomplished today:\n→ \n→ \n\nWhat I didn't finish:\n→ \n\nOne thing I learned:\n\nOne thing I am proud of:\n\nEnergy level today: /10\n\nTomorrow's priority:",
+    color: 'cream',
+    tag: 'note',
+    priority: 'none'
+  },
+  weekly_goals: {
+    title: '🎯 Weekly Goals',
+    content: "Week of:\n\nWork goal:\n\nHealth goal:\n\nPersonal goal:\n\nLearning goal:\n\nOne thing I will NOT do this week:\n\nHow I will know it was a good week:",
+    color: 'green',
+    tag: 'task',
+    priority: 'none'
+  },
+  reading_list: {
+    title: '📚 Reading List',
+    content: "Currently reading:\n→ Title:\n→ Author:\n→ % done:\n→ Key idea so far:\n\nWant to read next:\n→ \n→ \n→ \n\nFinished recently:\n→ Title:\n→ Best takeaway:",
     color: 'pink',
-    tag: 'quote',
+    tag: 'note',
+    priority: 'none'
+  },
+  workout_plan: {
+    title: '💪 Workout Plan',
+    content: "Week of:\n\nMonday:\nTuesday:\nWednesday:\nThursday:\nFriday:\nSaturday:\nSunday:\n\nThis week's goal:\n\nCurrent weight / metric:\n\nNotes:",
+    color: 'blue',
+    tag: 'task',
+    priority: 'none'
+  },
+  content_idea: {
+    title: '💡 Content Idea',
+    content: "Platform:\nContent type:\n\nHook:\n\nMain point:\n\nSupporting points:\n→ \n→ \n\nCall to action:\n\nBest time to post:\n\nStatus: Idea / Scripted / Recorded / Posted",
+    color: 'yellow',
+    tag: 'idea',
+    priority: 'none'
+  },
+  twitter_thread: {
+    title: '🐦 Twitter Thread',
+    content: "Topic:\nGoal of this thread:\n\nTweet 1 (Hook):\n\nTweet 2:\n\nTweet 3:\n\nTweet 4:\n\nTweet 5:\n\nFinal tweet (CTA):\n\nPosted on:",
+    color: 'blue',
+    tag: 'idea',
+    priority: 'none'
+  },
+  blog_outline: {
+    title: '✍️ Blog Post Outline',
+    content: "Title:\nTarget keyword:\nTarget reader:\n\nIntro hook:\n\nSection 1:\n→ \n\nSection 2:\n→ \n\nSection 3:\n→ \n\nConclusion and CTA:\n\nInternal links to add:\n→ \n\nStatus: Outline / Draft / Review / Published",
+    color: 'purple',
+    tag: 'note',
+    priority: 'none'
+  },
+  idea_validation: {
+    title: '🚀 Idea Validation',
+    content: "Idea:\n\nProblem it solves:\n\nWho has this problem:\n\nHow they solve it today:\n\nWhy my solution is better:\n\nHow to test in one week:\n\nSuccess metric:\n\nKill condition (when to stop):",
+    color: 'orange',
+    tag: 'idea',
+    priority: 'medium'
+  },
+  launch_plan: {
+    title: '🏁 Launch Plan',
+    content: "Product:\nLaunch date:\n\nTarget audience:\n\nLaunch channels:\n→ \n→ \n\nPre-launch tasks:\n→ \n→ \n\nLaunch day tasks:\n→ \n→ \n\nPost-launch tasks:\n→ \n→ \n\nGoal for launch day:\n\nSuccess metric:",
+    color: 'green',
+    tag: 'task',
+    priority: 'high'
+  },
+  user_interview: {
+    title: '👤 User Interview Notes',
+    content: "Interviewee:\nDate:\nChannel:\n\nBackground:\n\nKey questions asked:\n→ \n→ \n→ \n\nWhat they said (exact words):\n→ \n→ \n\nPain points identified:\n→ \n→ \n\nSurprising insight:\n\nHow this changes my thinking:",
+    color: 'purple',
+    tag: 'note',
+    priority: 'none'
+  },
+  questions: {
+    title: '❓ Questions to Answer',
+    content: "Date:\n\nQuestions I need to answer:\n→ \n→ \n→ \n→ \n\nMost urgent question:\n\nWho can help me answer these:\n\nDeadline to resolve:",
+    color: 'pink',
+    tag: 'note',
+    priority: 'medium'
+  },
+  idea_parking: {
+    title: '🧠 Idea Parking Lot',
+    content: "Date:\n\nIdeas I don't want to lose:\n→ \n→ \n→ \n→ \n→ \n\nBest idea from above:\n\nWhy it might work:\n\nWhen to revisit:",
+    color: 'cream',
+    tag: 'idea',
     priority: 'none'
   }
 };
@@ -71,6 +192,7 @@ export function Modal({ type, onClose }) {
   const [priority, setPriority] = useState(editingNote && editingNote.priority ? editingNote.priority : 'none');
   const [status, setStatus] = useState(editingNote && editingNote.status ? editingNote.status : 'none');
   const [font, setFont] = useState(editingNote && editingNote.font ? editingNote.font : 'default');
+  const [fontColor, setFontColor] = useState(editingNote && editingNote.fontColor ? editingNote.fontColor : '');
   const [reminder, setReminder] = useState(editingNote && editingNote.reminder ? editingNote.reminder : '');
   const [saving, setSaving] = useState(false);
 
@@ -171,7 +293,10 @@ export function Modal({ type, onClose }) {
       priority: n.priority || 'medium',
       pinned: !!n.pinned,
       starred: !!n.starred,
-      items: n.items || null,
+      items: {
+        customColor: n.customColor || null,
+        fontColor: n.fontColor || null
+      },
       author: n.tag === 'quote' ? (n.title || '') : null,
       created_at: new Date(n.created).toISOString(),
       updated_at: new Date(n.updated).toISOString(),
@@ -188,6 +313,7 @@ export function Modal({ type, onClose }) {
         content: content.trim(),
         color,
         customColor: customColor || null,
+        fontColor: fontColor || null,
         tag,
         priority,
         status,
@@ -213,6 +339,7 @@ export function Modal({ type, onClose }) {
         content: content.trim(),
         color,
         customColor: customColor || null,
+        fontColor: fontColor || null,
         tag,
         priority,
         status,
@@ -230,6 +357,7 @@ export function Modal({ type, onClose }) {
             content: content.trim(),
             color,
             customColor: customColor || null,
+            fontColor: fontColor || null,
             tag,
             priority,
             status,
@@ -244,7 +372,7 @@ export function Modal({ type, onClose }) {
 
       return () => clearTimeout(timer);
     }
-  }, [title, content, color, customColor, tag, priority, status, font, reminder]);
+  }, [title, content, color, customColor, fontColor, tag, priority, status, font, reminder]);
 
   const handleClose = () => {
     // Cleanup blank auto-created cards
@@ -328,12 +456,38 @@ export function Modal({ type, onClose }) {
               style={{ width: '100%', padding: '8px 12px', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
             >
               <option value="">-- Apply a Template --</option>
-              <option value="meeting">📝 Meeting Notes</option>
-              <option value="project">🚀 Project Plan</option>
-              <option value="daily">☀️ Daily Review</option>
-              <option value="habit">✅ Habit Tracker</option>
-              <option value="learning">📚 Learning Log</option>
-              <option value="gratitude">🙏 Gratitude Journal</option>
+              <optgroup label="💼 Work Templates">
+                <option value="daily_plan">☀️ Daily Plan</option>
+                <option value="weekly_review">📅 Weekly Review</option>
+                <option value="monthly_review">📅 Monthly Review</option>
+                <option value="meeting_notes">🎙️ Meeting Notes</option>
+                <option value="one_on_one">👥 1 on 1 Meeting</option>
+                <option value="client_brief">💼 Client Brief</option>
+                <option value="status_update">📊 Status Update</option>
+                <option value="okrs">🎯 OKRs</option>
+              </optgroup>
+              <optgroup label="👤 Personal Templates">
+                <option value="brain_dump">⚡ Brain Dump</option>
+                <option value="morning_routine">🌅 Morning Routine</option>
+                <option value="evening_reflection">🌙 Evening Reflection</option>
+                <option value="weekly_goals">🎯 Weekly Goals</option>
+                <option value="reading_list">📚 Reading List</option>
+                <option value="workout_plan">💪 Workout Plan</option>
+              </optgroup>
+              <optgroup label="💡 Creator Templates">
+                <option value="content_idea">💡 Content Idea</option>
+                <option value="twitter_thread">🐦 Twitter Thread</option>
+                <option value="blog_outline">✍️ Blog Post Outline</option>
+              </optgroup>
+              <optgroup label="🚀 Founder Templates">
+                <option value="idea_validation">🚀 Idea Validation</option>
+                <option value="launch_plan">🏁 Launch Plan</option>
+                <option value="user_interview">👤 User Interview Notes</option>
+              </optgroup>
+              <optgroup label="🧠 Quick Notes Templates">
+                <option value="questions">❓ Questions to Answer</option>
+                <option value="idea_parking">🧠 Idea Parking Lot</option>
+              </optgroup>
             </select>
           </div>
 
@@ -403,6 +557,66 @@ export function Modal({ type, onClose }) {
                   onChange={e => {
                     setCustomColor(e.target.value);
                     setColor('custom'); // standard color key ignored since customColor takes priority
+                  }}
+                  style={{
+                    position: 'absolute',
+                    opacity: 0,
+                    width: '100%',
+                    height: '100%',
+                    cursor: 'pointer'
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Font Color Picker */}
+          <div className="form-group">
+            <label>Font Color</label>
+            <div className="color-picker" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {FONT_COLORS.map(c => (
+                <div
+                  key={c.id}
+                  className={`color-swatch ${fontColor === c.hex || (c.id === 'default' && !fontColor) ? 'selected' : ''}`}
+                  style={{
+                    backgroundColor: c.hex === 'transparent' ? '#ffffff' : c.hex,
+                    border: c.hex === 'transparent' ? '2px dashed rgba(255,255,255,0.4)' : '1px solid rgba(255,255,255,0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  onClick={() => {
+                    setFontColor(c.hex === 'transparent' ? '' : c.hex);
+                  }}
+                  title={c.label}
+                >
+                  {c.id === 'default' && <span style={{ fontSize: '9px', color: '#000' }}>❌</span>}
+                </div>
+              ))}
+              {/* Custom Font Color Picker */}
+              <div
+                className={`color-swatch custom-swatch ${fontColor && !FONT_COLORS.some(c => c.hex === fontColor) ? 'selected' : ''}`}
+                style={{
+                  background: fontColor && !FONT_COLORS.some(c => c.hex === fontColor) ? fontColor : 'linear-gradient(135deg, #ff0000, #00ff00, #0000ff)',
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  color: '#fff',
+                  border: fontColor && !FONT_COLORS.some(c => c.hex === fontColor) ? '2px solid #fff' : 'none'
+                }}
+                title="Custom Font Color"
+                onClick={() => document.getElementById('custom-font-color-input').click()}
+              >
+                🌈
+                <input
+                  type="color"
+                  id="custom-font-color-input"
+                  value={fontColor && !FONT_COLORS.some(c => c.hex === fontColor) ? fontColor : '#ffffff'}
+                  onChange={e => {
+                    setFontColor(e.target.value);
                   }}
                   style={{
                     position: 'absolute',

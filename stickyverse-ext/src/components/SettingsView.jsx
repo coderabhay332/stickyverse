@@ -2,7 +2,7 @@ import React from 'react';
 import { useAppContext } from '../App';
 
 export function SettingsView() {
-  const { theme, setTheme, THEMES, globalFont, setGlobalFont, user, signIn, signOut, notes } = useAppContext();
+  const { theme, setTheme, THEMES, globalFont, setGlobalFont, user, signIn, signOut, notes, priorityColors, setPriorityColors } = useAppContext();
 
   const clearData = () => {
     if (window.confirm('Clear all local data? This cannot be undone.')) {
@@ -161,6 +161,46 @@ export function SettingsView() {
               >
                 {f.label}
               </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Priority Colors Section */}
+      <div className="settings-section">
+        <div className="settings-section-title">🏷️ Priority Badge Colors</div>
+        <div className="widget" style={{ padding: '16px' }}>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', marginBottom: 14 }}>
+            Choose custom colors for your note and task priority badges:
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
+            {[
+              { key: 'low', label: '🟢 Low' },
+              { key: 'medium', label: '🟡 Medium' },
+              { key: 'high', label: '🟠 High' },
+              { key: 'urgent', label: '🔴 Urgent' },
+            ].map(p => (
+              <div key={p.key} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '12.5px', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>{p.label}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <input
+                    type="color"
+                    value={priorityColors[p.key] || '#cccccc'}
+                    onChange={e => setPriorityColors(prev => ({ ...prev, [p.key]: e.target.value }))}
+                    style={{
+                      width: '24px',
+                      height: '24px',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      background: 'transparent'
+                    }}
+                  />
+                  <span style={{ fontSize: '12px', fontFamily: 'monospace', color: 'rgba(255,255,255,0.6)' }}>
+                    {priorityColors[p.key]}
+                  </span>
+                </div>
+              </div>
             ))}
           </div>
         </div>

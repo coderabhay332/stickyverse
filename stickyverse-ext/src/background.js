@@ -164,7 +164,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// Alarm Listener for water reminder
+// Alarm Listener for water reminder and notes reminders
 chrome.alarms.onAlarm.addListener((alarm) => {
   console.log('Alarm fired:', alarm.name);
   if (alarm.name === 'water_reminder') {
@@ -188,15 +188,63 @@ chrome.alarms.onAlarm.addListener((alarm) => {
       title: '💧 Stay Hydrated!',
       body: "Time to drink some water and take a quick stretch break."
     });
+  } else if (alarm.name === 'notes_reminder_checker') {
+    checkNotesReminders();
   }
 });
 
-// Restore alarms on startup/sw wake-up
+// Function to check notes reminders in background
+function checkNotesReminders() {
+  chrome.storage.local.get(['sv_notes'], (res) => {
+    if (!res.sv_notes || !Array.isArray(res.sv_notes)) return;
+
+    const now = Date.now();
+    let hasUpdates = false;
+
+    const updatedNotes = res.sv_notes.map(note => {
+      if (note.reminder && !note.reminderTriggered) {
+        const remTime = new Date(note.reminder).getTime();
+        if (remTime <= now) {
+          // Trigger browser notification
+          chrome.notifications.create('note_reminder_' + note.id + '_' + now, {
+            type: 'basic',
+            iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+            title: `⏰ Reminder: ${note.title || 'StickyVerse Task'}`,
+            message: note.content || 'Your scheduled reminder has arrived!',
+            priority: 2
+          });
+          hasUpdates = true;
+          return { ...note, reminderTriggered: true, updated: now };
+        }
+      }
+      return note;
+    });
+
+    if (hasUpdates) {
+      chrome.storage.local.set({ sv_notes: updatedNotes }).then(() => {
+        broadcastToNewTabs({
+          type: 'NOTES_UPDATED_BACKGROUND',
+          notes: updatedNotes
+        });
+      });
+    }
+  });
+}
+
+// Restore and initialize alarms on startup/sw wake-up
 chrome.storage.local.get(['water_reminder_enabled', 'water_reminder_interval']).then(res => {
   if (res.water_reminder_enabled) {
     chrome.alarms.clear('water_reminder').then(() => {
       chrome.alarms.create('water_reminder', { periodInMinutes: Number(res.water_reminder_interval || 120) });
       console.log('Water reminder alarm restored on SW startup.');
     });
+  }
+});
+
+// Make sure notes reminder checker runs every 1 minute
+chrome.alarms.get('notes_reminder_checker', (alarm) => {
+  if (!alarm) {
+    chrome.alarms.create('notes_reminder_checker', { periodInMinutes: 1 });
+    console.log('Notes reminder checker alarm created on SW startup.');
   }
 });
