@@ -37,7 +37,7 @@ export function NoteCard({ note, index }) {
   const textColor = isDark ? '#c7d2fe' : undefined;
 
   const hasWashiTape = note.hasTape || note.tag === 'idea' || note.tag === 'quote';
-  const hasSpiral = note.style === 'notebook' || note.tag === 'task' || note.tag === 'checklist';
+  const hasSpiral = false;
 
   const handlePin = async (e) => {
     e.stopPropagation();
