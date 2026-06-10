@@ -17,7 +17,7 @@ export function NotesGrid() {
   const { notes, links, filter, sortBy, searchQuery, setNotes, setLinks, user, supabase } = useAppContext();
 
   const filtered = useMemo(() => {
-    let arr = notes.filter(n => n && !n.archived);
+    let arr = notes.filter(n => n && !n.archived && n.title !== '__sv_streaks__');
 
     // Map links state to note structure
     const mappedLinks = (links || []).map(l => ({

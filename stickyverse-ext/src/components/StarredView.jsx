@@ -5,7 +5,7 @@ import { EmptyState } from './EmptyState';
 
 export function StarredView() {
   const { notes } = useAppContext();
-  const starred = notes.filter(n => n.starred && !n.archived);
+  const starred = notes.filter(n => n.starred && !n.archived && n.title !== '__sv_streaks__');
 
   return (
     <div>

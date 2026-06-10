@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       const notes = result.sv_notes || [];
       const links = result.sv_links || [];
-      noteCount = notes.length;
+      noteCount = notes.filter(n => n.title !== '__sv_streaks__').length;
       linkCount = links.length;
       renderCounts();
     } catch (e) {

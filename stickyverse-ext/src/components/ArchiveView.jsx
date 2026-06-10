@@ -5,7 +5,7 @@ import { EmptyState } from './EmptyState';
 
 export function ArchiveView() {
   const { notes, setNotes } = useAppContext();
-  const archived = notes.filter(n => n.archived);
+  const archived = notes.filter(n => n.archived && n.title !== '__sv_streaks__');
 
   const handleRestore = (id) => {
     setNotes(prev => prev.map(n => n.id === id ? { ...n, archived: false } : n));

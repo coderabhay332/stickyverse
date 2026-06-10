@@ -5,7 +5,7 @@ import { EmptyState } from './EmptyState';
 
 export function PinnedView() {
   const { notes } = useAppContext();
-  const pinned = notes.filter(n => n.pinned && !n.archived);
+  const pinned = notes.filter(n => n.pinned && !n.archived && n.title !== '__sv_streaks__');
 
   return (
     <div>

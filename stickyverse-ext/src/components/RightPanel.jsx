@@ -26,7 +26,7 @@ export function RightPanel() {
 
   // Calculate dynamic stats
   const todayStart = new Date().setHours(0, 0, 0, 0);
-  const notesToday = notes.filter(n => (n.created || Date.now()) >= todayStart).length;
+  const notesToday = notes.filter(n => (n.created || Date.now()) >= todayStart && n.title !== '__sv_streaks__').length;
   const tasksDone = notes.filter(n => n.status === 'completed').length;
   const linksSaved = links.length + notes.filter(n => n.tag === 'link').length;
 
