@@ -20,21 +20,50 @@ export function TopBar() {
 
   const handleClearNotif = async (e, noteId) => {
     e.stopPropagation();
-    const updatedNotes = notes.map(n => n.id === noteId ? { ...n, reminder: null, reminderTriggered: false } : n);
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return;
+    const updatedNotes = notes.map(n => n.id === noteId ? { ...n, reminder: null, reminderTriggered: false, updated: Date.now(), synced: false } : n);
     setNotes(updatedNotes);
     if (user && supabase) {
-      await supabase.from('notes').update({ reminder: null, reminderTriggered: false }).eq('id', noteId);
+      const { error } = await supabase.from('notes').update({
+        items: {
+          customColor: note.customColor || null,
+          fontColor: note.fontColor || null,
+          realPriority: note.priority || 'none',
+          reminder: null,
+          reminderTriggered: false
+        },
+        updated_at: new Date().toISOString()
+      }).eq('id', noteId);
+      if (!error) {
+        setNotes(prev => prev.map(n => n.id === noteId ? { ...n, synced: true } : n));
+      }
     }
   };
 
   const handleClearAllNotifs = async () => {
-    const updatedNotes = notes.map(n => n.reminderTriggered ? { ...n, reminder: null, reminderTriggered: false } : n);
+    const updatedNotes = notes.map(n => n.reminderTriggered ? { ...n, reminder: null, reminderTriggered: false, updated: Date.now(), synced: false } : n);
     setNotes(updatedNotes);
     if (user && supabase) {
       const triggeredIds = triggeredNotes.map(n => n.id);
       for (const id of triggeredIds) {
         try {
-          await supabase.from('notes').update({ reminder: null, reminderTriggered: false }).eq('id', id);
+          const note = notes.find(n => n.id === id);
+          if (note) {
+            const { error } = await supabase.from('notes').update({
+              items: {
+                customColor: note.customColor || null,
+                fontColor: note.fontColor || null,
+                realPriority: note.priority || 'none',
+                reminder: null,
+                reminderTriggered: false
+              },
+              updated_at: new Date().toISOString()
+            }).eq('id', id);
+            if (!error) {
+              setNotes(prev => prev.map(n => n.id === id ? { ...n, synced: true } : n));
+            }
+          }
         } catch (err) {
           console.error(err);
         }

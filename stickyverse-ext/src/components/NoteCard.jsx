@@ -40,7 +40,7 @@ const getContrastColor = (hex) => {
 };
 
 export function NoteCard({ note, index }) {
-  const { setNotes, setLinks, user, supabase, setEditingNote, setModalType, setModalOpen, priorityColors } = useAppContext();
+  const { setNotes, setLinks, user, supabase, setEditingNote, setModalType, setModalOpen, priorityColors, addDeletedNoteId, addDeletedLinkId } = useAppContext();
   const [hovered, setHovered] = useState(false);
 
   const bgColor = COLOR_MAP[note.color] || '#EDE9FE';
@@ -52,33 +52,74 @@ export function NoteCard({ note, index }) {
 
   const handlePin = async (e) => {
     e.stopPropagation();
-    const updated = { ...note, pinned: !note.pinned, updated: Date.now() };
+    const updated = { ...note, pinned: !note.pinned, updated: Date.now(), synced: false };
     setNotes(prev => prev.map(n => n.id === note.id ? updated : n));
-    if (user && supabase) await supabase.from('notes').update({ pinned: updated.pinned }).eq('id', note.id);
+    if (user && supabase) {
+      try {
+        const { error } = await supabase.from('notes').update({ pinned: updated.pinned, updated_at: new Date(updated.updated).toISOString() }).eq('id', note.id);
+        if (!error) {
+          setNotes(prev => prev.map(n => n.id === note.id ? { ...n, synced: true } : n));
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
   };
 
   const handleStar = async (e) => {
     e.stopPropagation();
-    const updated = { ...note, starred: !note.starred, updated: Date.now() };
+    const updated = { ...note, starred: !note.starred, updated: Date.now(), synced: false };
     setNotes(prev => prev.map(n => n.id === note.id ? updated : n));
-    if (user && supabase) await supabase.from('notes').update({ starred: updated.starred }).eq('id', note.id);
+    if (user && supabase) {
+      try {
+        const { error } = await supabase.from('notes').update({ starred: updated.starred, updated_at: new Date(updated.updated).toISOString() }).eq('id', note.id);
+        if (!error) {
+          setNotes(prev => prev.map(n => n.id === note.id ? { ...n, synced: true } : n));
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
   };
 
   const handleArchive = async (e) => {
     e.stopPropagation();
-    const updated = { ...note, archived: true, updated: Date.now() };
+    const updated = { ...note, archived: true, updated: Date.now(), synced: false };
     setNotes(prev => prev.map(n => n.id === note.id ? updated : n));
-    if (user && supabase) await supabase.from('notes').update({ archived: true }).eq('id', note.id);
+    if (user && supabase) {
+      try {
+        const { error } = await supabase.from('notes').update({ archived: true, updated_at: new Date(updated.updated).toISOString() }).eq('id', note.id);
+        if (!error) {
+          setNotes(prev => prev.map(n => n.id === note.id ? { ...n, synced: true } : n));
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
   };
 
   const handleDelete = async (e) => {
     e.stopPropagation();
     if (note.isLinkVaultItem) {
       setLinks(prev => prev.filter(l => l.id !== note.id));
-      if (user && supabase) await supabase.from('links').delete().eq('id', note.id);
+      addDeletedLinkId(note.id);
+      if (user && supabase) {
+        try {
+          await supabase.from('links').delete().eq('id', note.id);
+        } catch (err) {
+          console.error(err);
+        }
+      }
     } else {
       setNotes(prev => prev.filter(n => n.id !== note.id));
-      if (user && supabase) await supabase.from('notes').delete().eq('id', note.id);
+      addDeletedNoteId(note.id);
+      if (user && supabase) {
+        try {
+          await supabase.from('notes').delete().eq('id', note.id);
+        } catch (err) {
+          console.error(err);
+        }
+      }
     }
   };
 
@@ -87,24 +128,51 @@ export function NoteCard({ note, index }) {
     const CYCLE = ['none', 'in-progress', 'completed', 'delayed', 'waiting', 'cancelled'];
     const idx = CYCLE.indexOf(note.status || 'none');
     const nextStatus = CYCLE[(idx + 1) % CYCLE.length];
-    const updated = { ...note, status: nextStatus, updated: Date.now() };
+    const updated = { ...note, status: nextStatus, updated: Date.now(), synced: false };
     setNotes(prev => prev.map(n => n.id === note.id ? updated : n));
-    if (user && supabase) await supabase.from('notes').update({ status: updated.status }).eq('id', note.id);
+    if (user && supabase) {
+      try {
+        const { error } = await supabase.from('notes').update({ status: updated.status, updated_at: new Date(updated.updated).toISOString() }).eq('id', note.id);
+        if (!error) {
+          setNotes(prev => prev.map(n => n.id === note.id ? { ...n, synced: true } : n));
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
   };
 
   const handleToggleCompleted = async (e) => {
     e.stopPropagation();
     const isCompleted = note.status === 'completed';
     const nextStatus = isCompleted ? 'none' : 'completed';
-    const updated = { ...note, status: nextStatus, updated: Date.now() };
+    const updated = { ...note, status: nextStatus, updated: Date.now(), synced: false };
     setNotes(prev => prev.map(n => n.id === note.id ? updated : n));
-    if (user && supabase) await supabase.from('notes').update({ status: updated.status }).eq('id', note.id);
+    if (user && supabase) {
+      try {
+        const { error } = await supabase.from('notes').update({ status: updated.status, updated_at: new Date(updated.updated).toISOString() }).eq('id', note.id);
+        if (!error) {
+          setNotes(prev => prev.map(n => n.id === note.id ? { ...n, synced: true } : n));
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
   };
 
   const handleColorChange = async (colorName) => {
-    const updated = { ...note, color: colorName, updated: Date.now() };
+    const updated = { ...note, color: colorName, updated: Date.now(), synced: false };
     setNotes(prev => prev.map(n => n.id === note.id ? updated : n));
-    if (user && supabase) await supabase.from('notes').update({ color: updated.color }).eq('id', note.id);
+    if (user && supabase) {
+      try {
+        const { error } = await supabase.from('notes').update({ color: updated.color, updated_at: new Date(updated.updated).toISOString() }).eq('id', note.id);
+        if (!error) {
+          setNotes(prev => prev.map(n => n.id === note.id ? { ...n, synced: true } : n));
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
   };
 
   const handleToggleChecklist = async (e, lineIndex) => {
@@ -135,9 +203,18 @@ export function NoteCard({ note, index }) {
     });
 
     const updatedContent = updatedLines.join('\n');
-    const updated = { ...note, content: updatedContent, updated: Date.now() };
+    const updated = { ...note, content: updatedContent, updated: Date.now(), synced: false };
     setNotes(prev => prev.map(n => n.id === note.id ? updated : n));
-    if (user && supabase) await supabase.from('notes').update({ content: updated.content }).eq('id', note.id);
+    if (user && supabase) {
+      try {
+        const { error } = await supabase.from('notes').update({ content: updated.content, updated_at: new Date(updated.updated).toISOString() }).eq('id', note.id);
+        if (!error) {
+          setNotes(prev => prev.map(n => n.id === note.id ? { ...n, synced: true } : n));
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
   };
 
   // Parse content lines in original order for rendering

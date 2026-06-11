@@ -86,13 +86,17 @@ async function sendSessionToBackground(session) {
       session: session
     });
     
-    if (response.success) {
+    if (response && response.success) {
       console.log('Session sent to background successfully');
     } else {
-      console.error('Failed to send session to background:', response.error);
+      console.error('Failed to send session to background:', response ? response.error : 'No response');
     }
   } catch (error) {
-    console.error('Error sending session to background:', error);
+    if (error.message && error.message.includes('Extension context invalidated')) {
+      console.log('StickyVerse: Extension context invalidated (Extension reloaded or updated). Please refresh the tab to reconnect.');
+    } else {
+      console.error('Error sending session to background:', error);
+    }
   }
 }
 
@@ -177,7 +181,15 @@ if (isTargetSite) {
         });
       } else if (event === 'SIGNED_OUT') {
         console.log('Supabase auth state changed: SIGNED_OUT');
-        chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' });
+        try {
+          chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' });
+        } catch (e) {
+          if (e.message && e.message.includes('Extension context invalidated')) {
+            console.log('StickyVerse: Extension context invalidated on SIGNED_OUT.');
+          } else {
+            console.error('Failed to send CLEAR_SESSION message:', e);
+          }
+        }
       }
     });
   }
@@ -185,7 +197,7 @@ if (isTargetSite) {
 
 // ─── Custom DOM Toast Notification for Water Reminders (All Sites) ────────────
 
-function showWaterToast(title, body) {
+function showAestheticToast(emoji, title, body) {
   // Check if style tag already exists, if not create it
   let styleTag = document.getElementById('sv-toast-styles');
   if (!styleTag) {
@@ -238,7 +250,7 @@ function showWaterToast(title, body) {
 
   // Create elements inside the toast
   const iconSpan = document.createElement('span');
-  iconSpan.innerText = '💧';
+  iconSpan.innerText = emoji || '💧';
   iconSpan.style.fontSize = '24px';
   iconSpan.style.alignSelf = 'center';
   iconSpan.style.lineHeight = '1';
@@ -325,7 +337,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'SHOW_WATER_TOAST') {
     console.log('StickyVerse content script received SHOW_WATER_TOAST:', message);
-    showWaterToast(message.title, message.body);
+    showAestheticToast('💧', message.title, message.body);
+    sendResponse({ success: true });
+    return true;
+  }
+
+  if (message.type === 'SHOW_TOAST') {
+    console.log('StickyVerse content script received SHOW_TOAST:', message);
+    showAestheticToast('⏰', message.title, message.body);
     sendResponse({ success: true });
     return true;
   }

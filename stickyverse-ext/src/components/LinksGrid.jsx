@@ -4,7 +4,7 @@ import { EmptyState } from './EmptyState';
 import { generateUUID } from '../utils/uuid';
 
 export function LinksGrid() {
-  const { links, setLinks, searchQuery, user, supabase } = useAppContext();
+  const { links, setLinks, searchQuery, user, supabase, addDeletedLinkId } = useAppContext();
   const [url, setUrl] = useState('');
   const [customTitle, setCustomTitle] = useState('');
   const [saving, setSaving] = useState(false);
@@ -28,10 +28,10 @@ export function LinksGrid() {
       created: Date.now(),
     };
 
-    setLinks(prev => [newLink, ...prev]);
+    setLinks(prev => [{ ...newLink, synced: false }, ...prev]);
 
     if (user && supabase) {
-      Promise.resolve(supabase.from('links').insert({
+      supabase.from('links').insert({
         id: newLink.id,
         user_id: user.id,
         url: newLink.url,
@@ -40,7 +40,11 @@ export function LinksGrid() {
         favicon: newLink.favicon,
         description: newLink.note || null,
         saved_at: new Date(newLink.created).toISOString(),
-      })).catch(console.error);
+      }).then(({ error }) => {
+        if (!error) {
+          setLinks(prev => prev.map(l => l.id === newLink.id ? { ...l, synced: true } : l));
+        }
+      }).catch(console.error);
     }
 
     setUrl('');
@@ -50,6 +54,7 @@ export function LinksGrid() {
 
   const handleDelete = (id) => {
     setLinks(prev => prev.filter(l => l.id !== id));
+    addDeletedLinkId(id);
     if (user && supabase) {
       Promise.resolve(supabase.from('links').delete().eq('id', id)).catch(console.error);
     }

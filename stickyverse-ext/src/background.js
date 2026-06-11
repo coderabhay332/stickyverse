@@ -42,6 +42,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
     return true;
   }
+  
+  if (message.type === 'CLIENT_REMINDER_TRIGGERED') {
+    chrome.storage.local.set({ sv_notes: message.notes })
+      .then(() => {
+        // Broadcast to other tabs so they don't fire again
+        if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
+          chrome.tabs.query({}, (tabs) => {
+            tabs.forEach(tab => {
+              if (tab && tab.id && tab.id !== sender.tab?.id) {
+                try {
+                  chrome.tabs.sendMessage(tab.id, {
+                    type: 'NOTES_UPDATED_BACKGROUND',
+                    notes: message.notes
+                  });
+                } catch (e) {
+                  // Ignore
+                }
+              }
+            });
+          });
+        }
+        sendResponse({ success: true });
+      })
+      .catch(error => {
+        console.error('Failed to update notes on client reminder trigger:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
 });
 
 // Handle extension installation
@@ -135,7 +164,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           // Show initial confirmation banner
           chrome.notifications.create('water_reminder_active', {
             type: 'basic',
-            iconUrl: 'icons/icon128.png',
+            iconUrl: chrome.runtime.getURL('icons/icon128.png'),
             title: '💧 Water Reminder Active!',
             message: `We will remind you to drink water every ${interval} minutes.`,
             priority: 2
@@ -170,11 +199,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Alarm Listener for water reminder and notes reminders
 chrome.alarms.onAlarm.addListener((alarm) => {
-  console.log('Alarm fired:', alarm.name);
+  if (alarm.name !== 'notes_reminder_checker') {
+    console.log('Alarm fired:', alarm.name);
+  }
   if (alarm.name === 'water_reminder') {
     chrome.notifications.create('water_reminder_alert_' + Date.now(), {
       type: 'basic',
-      iconUrl: 'icons/icon128.png',
+      iconUrl: chrome.runtime.getURL('icons/icon128.png'),
       title: '💧 Stay Hydrated!',
       message: "Time to drink some water and take a quick stretch break.",
       priority: 2
@@ -212,7 +243,7 @@ function checkNotesReminders() {
           // Trigger browser notification
           chrome.notifications.create('note_reminder_' + note.id + '_' + now, {
             type: 'basic',
-            iconUrl: 'icons/icon128.png',
+            iconUrl: chrome.runtime.getURL('icons/icon128.png'),
             title: `⏰ Reminder: ${note.title || 'StickyVerse Task'}`,
             message: note.content || 'Your scheduled reminder has arrived!',
             priority: 2
@@ -221,6 +252,13 @@ function checkNotesReminders() {
               console.error('Note Notification Error:', chrome.runtime.lastError.message);
             }
           });
+          
+          broadcastToNewTabs({
+            type: 'SHOW_TOAST',
+            title: `⏰ Reminder: ${note.title || 'StickyVerse Task'}`,
+            body: note.content || 'Your scheduled reminder has arrived!'
+          });
+
           hasUpdates = true;
           return { ...note, reminderTriggered: true, updated: now };
         }

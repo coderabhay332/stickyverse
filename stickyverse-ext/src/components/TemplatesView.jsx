@@ -226,7 +226,7 @@ export function TemplatesView() {
         updated: Date.now()
       };
 
-      setNotes(prev => [newNote, ...prev]);
+      setNotes(prev => [{ ...newNote, synced: false }, ...prev]);
 
       if (user && supabase) {
         const row = {
@@ -239,16 +239,22 @@ export function TemplatesView() {
           color: ['purple', 'yellow', 'pink', 'green', 'blue', 'cream', 'dark'].includes(newNote.color) ? newNote.color : 'purple',
           tag: newNote.tag || 'note',
           status: newNote.status || 'none',
-          priority: newNote.priority === 'none' ? null : (newNote.priority || 'medium'),
+          priority: ['low', 'medium', 'high', 'urgent'].includes(newNote.priority) ? newNote.priority : 'medium',
           pinned: !!newNote.pinned,
           starred: !!newNote.starred,
-          items: {},
+          items: {
+            realPriority: newNote.priority || 'none'
+          },
           created_at: new Date(newNote.created).toISOString(),
           updated_at: new Date(newNote.updated).toISOString(),
         };
         try {
           const { error } = await supabase.from('notes').insert(row);
-          if (error) console.error('Failed to sync template note:', error.message);
+          if (error) {
+            console.error('Failed to sync template note:', error.message);
+          } else {
+            setNotes(prev => prev.map(n => n.id === newNote.id ? { ...n, synced: true } : n));
+          }
         } catch (e) {
           console.error('Failed to sync template note:', e.message);
         }

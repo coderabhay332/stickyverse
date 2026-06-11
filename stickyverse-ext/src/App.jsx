@@ -39,6 +39,28 @@ export default function App() {
   const [notes, setNotes] = useLocalStorage('sv_notes', []);
   const [links, setLinks] = useLocalStorage('sv_links', []);
   const [goals, setGoals] = useLocalStorage('sv_goals', []);
+  const [deletedNoteIds, setDeletedNoteIds] = useLocalStorage('sv_deleted_note_ids', []);
+  const [deletedLinkIds, setDeletedLinkIds] = useLocalStorage('sv_deleted_link_ids', []);
+
+  const deletedNoteIdsRef = React.useRef(deletedNoteIds);
+  const deletedLinkIdsRef = React.useRef(deletedLinkIds);
+
+  useEffect(() => {
+    deletedNoteIdsRef.current = deletedNoteIds;
+  }, [deletedNoteIds]);
+
+  useEffect(() => {
+    deletedLinkIdsRef.current = deletedLinkIds;
+  }, [deletedLinkIds]);
+
+  const addDeletedNoteId = (id) => {
+    setDeletedNoteIds(prev => prev.includes(id) ? prev : [...prev, id]);
+  };
+
+  const addDeletedLinkId = (id) => {
+    setDeletedLinkIds(prev => prev.includes(id) ? prev : [...prev, id]);
+  };
+
   const [view, setView] = useState('home');
   const [filter, setFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
@@ -103,7 +125,7 @@ export default function App() {
   // Listen for background alarm messages (like water reminder fallback toasts and background notes updates)
   useEffect(() => {
     const handleMessage = (message, sender, sendResponse) => {
-      if (message.type === 'SHOW_WATER_TOAST') {
+      if (message.type === 'SHOW_WATER_TOAST' || message.type === 'SHOW_TOAST') {
         setToast({ title: message.title, body: message.body });
         // Clear toast automatically after 8 seconds
         setTimeout(() => {
@@ -115,7 +137,35 @@ export default function App() {
         if (sendResponse) sendResponse({ success: true });
       } else if (message.type === 'NOTES_UPDATED_BACKGROUND') {
         if (message.notes && Array.isArray(message.notes)) {
-          setNotes(message.notes);
+          setNotes(prevNotes => {
+            // Find newly triggered reminders to sync to Supabase immediately
+            if (supabase && user) {
+              message.notes.forEach(note => {
+                const prevNote = prevNotes.find(p => p.id === note.id);
+                // If it is now triggered, but wasn't before
+                if (note.reminderTriggered && (!prevNote || !prevNote.reminderTriggered)) {
+                  const priorityValue = ['low', 'medium', 'high', 'urgent'].includes(note.priority) ? note.priority : 'medium';
+                  supabase.from('notes').update({
+                    items: {
+                      customColor: note.customColor || null,
+                      fontColor: note.fontColor || null,
+                      realPriority: note.priority || 'none',
+                      reminder: note.reminder || null,
+                      reminderTriggered: true
+                    },
+                    updated_at: new Date(note.updated || Date.now()).toISOString()
+                  }).eq('id', note.id).then(({ error }) => {
+                    if (error) {
+                      console.error('Failed to sync background triggered reminder to Supabase:', error.message);
+                    } else {
+                      console.log('Successfully synced background triggered reminder for note:', note.title);
+                    }
+                  });
+                }
+              });
+            }
+            return message.notes;
+          });
         }
         if (sendResponse) sendResponse({ success: true });
       }
@@ -124,7 +174,109 @@ export default function App() {
       chrome.runtime.onMessage.addListener(handleMessage);
       return () => chrome.runtime.onMessage.removeListener(handleMessage);
     }
-  }, [setNotes]);
+  }, [setNotes, supabase, user]);
+
+  // Client-side instant reminder checker (runs every 10 seconds)
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      const now = Date.now();
+      
+      setNotes(prevNotes => {
+        let updatedAny = false;
+        const nextNotes = prevNotes.map(note => {
+          if (note.reminder && !note.reminderTriggered) {
+            const remTime = new Date(note.reminder).getTime();
+            if (remTime <= now) {
+              updatedAny = true;
+              const updatedTime = Date.now();
+              
+              // Trigger browser notification
+              if (typeof chrome !== 'undefined' && chrome.notifications && chrome.notifications.create) {
+                chrome.notifications.create('note_reminder_' + note.id + '_' + updatedTime, {
+                  type: 'basic',
+                  iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+                  title: `⏰ Reminder: ${note.title || 'StickyVerse Task'}`,
+                  message: note.content || 'Your scheduled reminder has arrived!',
+                  priority: 2
+                });
+              } else if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(`⏰ Reminder: ${note.title || 'StickyVerse Task'}`, {
+                  body: note.content || 'Your scheduled reminder has arrived!',
+                  icon: 'icons/icon128.png'
+                });
+              }
+
+              // Show on-screen toast
+              setToast({
+                title: `⏰ Reminder: ${note.title || 'StickyVerse Task'}`,
+                body: note.content || 'Your scheduled reminder has arrived!'
+              });
+
+              // Clear toast after 8 seconds
+              setTimeout(() => {
+                setToast(prev => {
+                  if (prev && prev.title === `⏰ Reminder: ${note.title || 'StickyVerse Task'}`) return null;
+                  return prev;
+                });
+              }, 8000);
+
+              // Sync to Supabase immediately if logged in
+              if (supabase && user && note.synced) {
+                const priorityValue = ['low', 'medium', 'high', 'urgent'].includes(note.priority) ? note.priority : 'medium';
+                supabase.from('notes').update({
+                  items: {
+                    customColor: note.customColor || null,
+                    fontColor: note.fontColor || null,
+                    realPriority: note.priority || 'none',
+                    reminder: note.reminder || null,
+                    reminderTriggered: true
+                  },
+                  updated_at: new Date(updatedTime).toISOString()
+                }).eq('id', note.id).then(({ error }) => {
+                  if (error) {
+                    console.error('Client sync reminder trigger failed:', error.message);
+                  } else {
+                    console.log('Client successfully synced reminder trigger for:', note.title);
+                  }
+                });
+              }
+
+              return { ...note, reminderTriggered: true, updated: updatedTime };
+            }
+          }
+          return note;
+        });
+
+        if (updatedAny) {
+          // Write to chrome.storage.local first
+          if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+            chrome.storage.local.set({ sv_notes: nextNotes }).then(() => {
+              if (chrome.runtime && chrome.runtime.sendMessage) {
+                try {
+                  const promise = chrome.runtime.sendMessage({
+                    type: 'CLIENT_REMINDER_TRIGGERED',
+                    notes: nextNotes
+                  });
+                  if (promise && typeof promise.catch === 'function') {
+                    promise.catch((err) => {
+                      console.log('Client reminder sync message ignored (extension inactive):', err.message);
+                    });
+                  }
+                } catch (e) {
+                  // Silently ignore synchronous errors
+                }
+              }
+            }).catch(() => {});
+          }
+          return nextNotes;
+        }
+        return prevNotes;
+      });
+
+    }, 10000); // Check every 10 seconds
+
+    return () => clearInterval(intervalId);
+  }, [supabase, user]);
 
   // Apply theme CSS vars & wallpaper
   useEffect(() => {
@@ -176,20 +328,40 @@ export default function App() {
     }
   }, []);
 
+  // Clear synced notes/links on logout to prevent cross-user contamination/data leakage
+  useEffect(() => {
+    if (!authLoading && !user) {
+      setNotes(prev => prev.filter(n => !n.synced));
+      setLinks(prev => prev.filter(l => !l.synced));
+      setDeletedNoteIds([]);
+      setDeletedLinkIds([]);
+    }
+  }, [user, authLoading]);
+
   // Sync water reminder settings to background service worker
   useEffect(() => {
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-      chrome.runtime.sendMessage({
-        type: 'UPDATE_WATER_REMINDER',
-        enabled: waterReminder,
-        interval: Number(waterInterval)
-      }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.warn('Background service worker not active yet:', chrome.runtime.lastError.message);
-        } else {
-          console.log('Water reminder sync response:', response);
+      try {
+        const promise = chrome.runtime.sendMessage({
+          type: 'UPDATE_WATER_REMINDER',
+          enabled: waterReminder,
+          interval: Number(waterInterval)
+        }, (response) => {
+          const err = chrome.runtime.lastError;
+          if (err) {
+            console.log('Background service worker not active yet:', err.message);
+          } else {
+            console.log('Water reminder sync response:', response);
+          }
+        });
+        if (promise && typeof promise.catch === 'function') {
+          promise.catch((err) => {
+            console.log('Water reminder sync message ignored (extension inactive):', err.message);
+          });
         }
-      });
+      } catch (e) {
+        // Silently ignore synchronous errors
+      }
     }
   }, [waterReminder, waterInterval]);
 
@@ -202,6 +374,36 @@ export default function App() {
     const fetchCloudData = async () => {
       try {
         console.log('Fetching user data from Supabase...');
+        
+        // 0. Sync offline deletions first
+        const notesToDelete = deletedNoteIdsRef.current;
+        if (notesToDelete.length > 0) {
+          try {
+            const { error } = await supabase.from('notes').delete().in('id', notesToDelete);
+            if (!error) {
+              setDeletedNoteIds(prev => prev.filter(id => !notesToDelete.includes(id)));
+            } else {
+              console.error('Failed to sync offline note deletions:', error);
+            }
+          } catch (e) {
+            console.error('Failed to sync offline note deletions:', e);
+          }
+        }
+        
+        const linksToDelete = deletedLinkIdsRef.current;
+        if (linksToDelete.length > 0) {
+          try {
+            const { error } = await supabase.from('links').delete().in('id', linksToDelete);
+            if (!error) {
+              setDeletedLinkIds(prev => prev.filter(id => !linksToDelete.includes(id)));
+            } else {
+              console.error('Failed to sync offline link deletions:', error);
+            }
+          } catch (e) {
+            console.error('Failed to sync offline link deletions:', e);
+          }
+        }
+
         // 1. Fetch notes
         const { data: cloudNotes, error: notesError } = await supabase
           .from('notes')
@@ -220,48 +422,88 @@ export default function App() {
 
         if (!isMounted) return;
 
-        // Map cloud notes to local format
-        if (cloudNotes) {
-          const mappedNotes = cloudNotes.map(row => ({
-            id: row.id,
-            title: row.title || '',
-            content: row.content || '',
-            color: row.color || 'purple',
-            customColor: row.items?.customColor || null,
-            fontColor: row.items?.fontColor || null,
-            tag: row.tag || 'note',
-            priority: row.priority || 'none',
-            status: row.status || 'none',
-            font: 'sans',
-            reminder: row.reminder || null,
-            reminderTriggered: !!row.reminderTriggered,
-            pinned: !!row.pinned,
-            starred: !!row.starred,
-            archived: !!row.archived,
-            created: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
-            updated: row.updated_at ? new Date(row.updated_at).getTime() : Date.now(),
-          }));
+        // Filter out any fetched items that are locally deleted
+        const activeCloudNotes = (cloudNotes || []).filter(c => !deletedNoteIdsRef.current.includes(c.id));
+        const activeCloudLinks = (cloudLinks || []).filter(c => !deletedLinkIdsRef.current.includes(c.id));
 
-          setNotes(prev => {
-            // Sanitize local note IDs from template generators (starts with 'note_')
-            const sanitizedPrev = prev.map(local => {
-              if (local.id && local.id.startsWith('note_')) {
+        // Map cloud notes to local format
+        const mappedNotes = activeCloudNotes.map(row => ({
+          id: row.id,
+          title: row.title || '',
+          content: row.content || '',
+          color: row.color || 'purple',
+          customColor: row.items?.customColor || null,
+          fontColor: row.items?.fontColor || null,
+          tag: row.tag || 'note',
+          priority: row.items?.realPriority || row.priority || 'none',
+          status: row.status || 'none',
+          font: 'sans',
+          reminder: row.items?.reminder || null,
+          reminderTriggered: !!row.items?.reminderTriggered,
+          pinned: !!row.pinned,
+          starred: !!row.starred,
+          archived: !!row.archived,
+          created: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+          updated: row.updated_at ? new Date(row.updated_at).getTime() : Date.now(),
+          synced: true,
+        }));
+
+        setNotes(prev => {
+          const DEFAULT_DEMOS = {
+            demo1: { title: 'Welcome to StickyVerse ✨', content: 'Your aesthetic productivity workspace. Click + to create your first note!', color: 'purple', tag: 'note', status: 'none', priority: 'none', pinned: false, starred: false, archived: false },
+            demo2: { title: "Today's Tasks 📋", content: '• Complete project review\n• Send weekly report\n• Team meeting at 3 PM\n• Code review for PR #42', color: 'blue', tag: 'task', status: 'in-progress', priority: 'high', pinned: true, starred: false, archived: false },
+            demo3: { title: 'Quick Idea 💡', content: 'Add keyboard shortcuts for common actions. Ctrl+N for new note, Ctrl+P for pin.', color: 'yellow', tag: 'idea', status: 'none', priority: 'medium', pinned: false, starred: true, archived: false },
+            demo4: { title: 'Inspiration 🌊', content: '"The secret of getting ahead is getting started." — Mark Twain', color: 'green', tag: 'quote', status: 'none', priority: 'none', pinned: false, starred: false, archived: false },
+            demo5: { title: 'Meeting Notes', content: 'Discussed Q3 roadmap. Key decisions:\n- Launch v2 by August\n- Onboard 3 new clients\n- Redesign dashboard UI', color: 'pink', tag: 'note', status: 'none', priority: 'low', pinned: false, starred: false, archived: false },
+          };
+
+          const isDemoModified = (note) => {
+            const defaultDemo = DEFAULT_DEMOS[note.id];
+            if (!defaultDemo) return true;
+            return (
+              note.title !== defaultDemo.title ||
+              note.content !== defaultDemo.content ||
+              note.color !== defaultDemo.color ||
+              note.tag !== defaultDemo.tag ||
+              note.status !== defaultDemo.status ||
+              note.priority !== defaultDemo.priority ||
+              !!note.pinned !== defaultDemo.pinned ||
+              !!note.starred !== defaultDemo.starred ||
+              !!note.archived !== defaultDemo.archived
+            );
+          };
+
+          // Sanitize legacy 'note_' prefix and modified 'demo' notes to UUIDs
+          const sanitizedPrev = prev.map(local => {
+            if (local.id && local.id.startsWith('note_')) {
+              return { ...local, id: generateUUID() };
+            }
+            if (local.id && local.id.startsWith('demo')) {
+              if (isDemoModified(local)) {
                 return { ...local, id: generateUUID() };
               }
-              return local;
-            });
+            }
+            return local;
+          });
 
-            // Filter out default demo notes from local storage if we have real cloud notes
-            const filteredLocal = sanitizedPrev.filter(local => !local.id.startsWith('demo'));
-            if (filteredLocal.length === 0) return mappedNotes;
+          // Filter out unmodified demo notes
+          const filteredLocal = sanitizedPrev.filter(local => !local.id.startsWith('demo'));
 
-            const merged = [...mappedNotes];
-            filteredLocal.forEach(local => {
-              const cloud = merged.find(c => c.id === local.id);
-              if (!cloud) {
-                merged.push(local);
-                // Upload local note to cloud
-                const priorityValue = local.priority === 'none' ? null : (local.priority || 'medium');
+          if (filteredLocal.length === 0) {
+            return mappedNotes;
+          }
+
+          const merged = [...mappedNotes];
+          filteredLocal.forEach(local => {
+            const cloud = merged.find(c => c.id === local.id);
+            if (!cloud) {
+              if (local.synced === true) {
+                // Was synced before, missing in cloud -> deleted on cloud
+                console.log('Note was deleted on the cloud, removing locally:', local.title);
+              } else {
+                // Unsynced local note -> upload
+                merged.push({ ...local, synced: true });
+                const priorityValue = ['low', 'medium', 'high', 'urgent'].includes(local.priority) ? local.priority : 'medium';
                 supabase.from('notes').insert({
                   id: local.id,
                   user_id: user.id,
@@ -277,59 +519,84 @@ export default function App() {
                   starred: !!local.starred,
                   items: {
                     customColor: local.customColor || null,
-                    fontColor: local.fontColor || null
+                    fontColor: local.fontColor || null,
+                    realPriority: local.priority || 'none',
+                    reminder: local.reminder || null,
+                    reminderTriggered: !!local.reminderTriggered
                   },
                   created_at: new Date(local.created).toISOString(),
                   updated_at: new Date(local.updated).toISOString(),
                 }).then(({ error }) => {
-                  if (error) console.error('Failed to sync unsynced local note:', error.message);
-                });
-              } else if (local.updated > cloud.updated) {
-                const idx = merged.indexOf(cloud);
-                merged[idx] = local;
-                const priorityValue = local.priority === 'none' ? null : (local.priority || 'medium');
-                supabase.from('notes').update({
-                  title: local.title || null,
-                  content: local.content,
-                  color: ['purple', 'yellow', 'pink', 'green', 'blue', 'cream', 'dark'].includes(local.color) ? local.color : 'purple',
-                  tag: local.tag || 'note',
-                  status: local.status || 'none',
-                  priority: priorityValue,
-                  pinned: !!local.pinned,
-                  starred: !!local.starred,
-                  items: {
-                    customColor: local.customColor || null,
-                    fontColor: local.fontColor || null
-                  },
-                  updated_at: new Date(local.updated).toISOString(),
-                }).eq('id', local.id).then(({ error }) => {
-                  if (error) console.error('Failed to sync newer local note:', error.message);
+                  if (error) {
+                    console.error('Failed to sync unsynced local note:', error.message);
+                    setNotes(current => current.map(n => n.id === local.id ? { ...n, synced: false } : n));
+                  }
                 });
               }
-            });
-            return merged;
+            } else {
+              const localUpdated = local.updated || local.created || 0;
+              const cloudUpdated = cloud.updated || cloud.created || 0;
+              if (localUpdated > cloudUpdated) {
+                // Local is newer -> update cloud
+                const idx = merged.findIndex(c => c.id === local.id);
+                if (idx !== -1) {
+                  merged[idx] = { ...local, synced: true };
+                }
+                 const priorityValue = ['low', 'medium', 'high', 'urgent'].includes(local.priority) ? local.priority : 'medium';
+                 supabase.from('notes').update({
+                   title: local.title || null,
+                   content: local.content,
+                   color: ['purple', 'yellow', 'pink', 'green', 'blue', 'cream', 'dark'].includes(local.color) ? local.color : 'purple',
+                   tag: local.tag || 'note',
+                   status: local.status || 'none',
+                   priority: priorityValue,
+                   pinned: !!local.pinned,
+                   starred: !!local.starred,
+                   items: {
+                     customColor: local.customColor || null,
+                     fontColor: local.fontColor || null,
+                     realPriority: local.priority || 'none',
+                     reminder: local.reminder || null,
+                     reminderTriggered: !!local.reminderTriggered
+                   },
+                   updated_at: new Date(localUpdated).toISOString(),
+                 }).eq('id', local.id).then(({ error }) => {
+                  if (error) {
+                    console.error('Failed to sync newer local note:', error.message);
+                  }
+                });
+              } else {
+                // Cloud is newer or same -> keep cloud (which has synced: true)
+              }
+            }
           });
-        }
+          return merged;
+        });
 
         // Map cloud links to local format
-        if (cloudLinks) {
-          const mappedLinks = cloudLinks.map(row => ({
-            id: row.id,
-            url: row.url,
-            title: row.title,
-            host: row.host,
-            favicon: row.favicon,
-            note: row.description || '',
-            created: row.saved_at ? new Date(row.saved_at).getTime() : Date.now(),
-          }));
+        const mappedLinks = activeCloudLinks.map(row => ({
+          id: row.id,
+          url: row.url,
+          title: row.title,
+          host: row.host,
+          favicon: row.favicon,
+          note: row.description || '',
+          created: row.saved_at ? new Date(row.saved_at).getTime() : Date.now(),
+          synced: true,
+        }));
 
-          setLinks(prev => {
-            if (prev.length === 0) return mappedLinks;
-            const merged = [...mappedLinks];
-            prev.forEach(local => {
-              const cloud = merged.find(c => c.id === local.id);
-              if (!cloud) {
-                merged.push(local);
+        setLinks(prev => {
+          if (prev.length === 0) return mappedLinks;
+          const merged = [...mappedLinks];
+          prev.forEach(local => {
+            const cloud = merged.find(c => c.id === local.id);
+            if (!cloud) {
+              if (local.synced === true) {
+                // Was synced -> deleted on cloud
+                console.log('Link was deleted on the cloud, removing locally:', local.title);
+              } else {
+                // Unsynced local link -> upload
+                merged.push({ ...local, synced: true });
                 supabase.from('links').insert({
                   id: local.id,
                   user_id: user.id,
@@ -340,13 +607,16 @@ export default function App() {
                   description: local.note || null,
                   saved_at: new Date(local.created).toISOString(),
                 }).then(({ error }) => {
-                  if (error) console.error('Failed to sync unsynced local link:', error.message);
+                  if (error) {
+                    console.error('Failed to sync unsynced local link:', error.message);
+                    setLinks(current => current.map(l => l.id === local.id ? { ...l, synced: false } : l));
+                  }
                 });
               }
-            });
-            return merged;
+            }
           });
-        }
+          return merged;
+        });
 
       } catch (err) {
         console.error('Failed to fetch cloud data:', err.message);
@@ -385,43 +655,51 @@ export default function App() {
   // Demo notes seed
   useEffect(() => {
     if (notes.length === 0) {
+      const isUserLoggedIn = !!user;
       setNotes([
         {
-          id: 'demo1', title: 'Welcome to StickyVerse ✨',
+          id: isUserLoggedIn ? generateUUID() : 'demo1', title: 'Welcome to StickyVerse ✨',
           content: 'Your aesthetic productivity workspace. Click + to create your first note!',
           color: 'purple', tag: 'note', status: 'none', priority: 'none',
-          pinned: false, starred: false, archived: false, created: Date.now() - 3600000, updated: Date.now() - 3600000
+          pinned: false, starred: false, archived: false, created: Date.now() - 3600000, updated: Date.now() - 3600000,
+          synced: false
         },
         {
-          id: 'demo2', title: "Today's Tasks 📋",
+          id: isUserLoggedIn ? generateUUID() : 'demo2', title: "Today's Tasks 📋",
           content: '• Complete project review\n• Send weekly report\n• Team meeting at 3 PM\n• Code review for PR #42',
           color: 'blue', tag: 'task', status: 'in-progress', priority: 'high',
-          pinned: true, starred: false, archived: false, created: Date.now() - 7200000, updated: Date.now() - 3600000
+          pinned: true, starred: false, archived: false, created: Date.now() - 7200000, updated: Date.now() - 3600000,
+          synced: false
         },
         {
-          id: 'demo3', title: 'Quick Idea 💡',
+          id: isUserLoggedIn ? generateUUID() : 'demo3', title: 'Quick Idea 💡',
           content: 'Add keyboard shortcuts for common actions. Ctrl+N for new note, Ctrl+P for pin.',
           color: 'yellow', tag: 'idea', status: 'none', priority: 'medium',
-          pinned: false, starred: true, archived: false, created: Date.now() - 10800000, updated: Date.now() - 10800000
+          pinned: false, starred: true, archived: false, created: Date.now() - 10800000, updated: Date.now() - 10800000,
+          synced: false
         },
         {
-          id: 'demo4', title: 'Inspiration 🌊',
+          id: isUserLoggedIn ? generateUUID() : 'demo4', title: 'Inspiration 🌊',
           content: '"The secret of getting ahead is getting started." — Mark Twain',
           color: 'green', tag: 'quote', status: 'none', priority: 'none',
-          pinned: false, starred: false, archived: false, created: Date.now() - 14400000, updated: Date.now() - 14400000
+          pinned: false, starred: false, archived: false, created: Date.now() - 14400000, updated: Date.now() - 14400000,
+          synced: false
         },
         {
-          id: 'demo5', title: 'Meeting Notes',
+          id: isUserLoggedIn ? generateUUID() : 'demo5', title: 'Meeting Notes',
           content: 'Discussed Q3 roadmap. Key decisions:\n- Launch v2 by August\n- Onboard 3 new clients\n- Redesign dashboard UI',
           color: 'pink', tag: 'note', status: 'none', priority: 'low',
-          pinned: false, starred: false, archived: false, created: Date.now() - 18000000, updated: Date.now() - 18000000
+          pinned: false, starred: false, archived: false, created: Date.now() - 18000000, updated: Date.now() - 18000000,
+          synced: false
         },
       ]);
     }
-  }, []);
+  }, [user]);
 
   const ctx = {
     notes, setNotes, links, setLinks, goals, setGoals,
+    deletedNoteIds, setDeletedNoteIds, deletedLinkIds, setDeletedLinkIds,
+    addDeletedNoteId, addDeletedLinkId,
     view, setView, filter, setFilter, sortBy, setSortBy,
     theme, setTheme, modalOpen, setModalOpen, modalType, setModalType,
     editingNote, setEditingNote,

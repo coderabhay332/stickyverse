@@ -59,15 +59,19 @@ export function WidgetsView() {
       const updatedNote = {
         ...streakNote,
         content: JSON.stringify(updatedStreaks),
-        updated: now
+        updated: now,
+        synced: false
       };
       setNotes(prev => prev.map(n => n.id === streakNote.id ? updatedNote : n));
       if (user && supabase) {
         try {
-          await supabase.from('notes').update({
+          const { error } = await supabase.from('notes').update({
             content: updatedNote.content,
             updated_at: new Date(now).toISOString()
           }).eq('id', streakNote.id);
+          if (!error) {
+            setNotes(prev => prev.map(n => n.id === streakNote.id ? { ...n, synced: true } : n));
+          }
         } catch (e) {
           console.error('Failed to sync updated streaks note:', e);
         }
@@ -86,12 +90,13 @@ export function WidgetsView() {
         starred: false,
         archived: false,
         created: now,
-        updated: now
+        updated: now,
+        synced: false
       };
       setNotes(prev => [newNote, ...prev]);
       if (user && supabase) {
         try {
-          await supabase.from('notes').insert({
+          const { error } = await supabase.from('notes').insert({
             id: newId,
             user_id: user.id,
             title: newNote.title,
@@ -101,13 +106,18 @@ export function WidgetsView() {
             color: 'purple',
             tag: 'note',
             status: 'none',
-            priority: null,
+            priority: 'medium',
             pinned: false,
             starred: false,
-            items: {},
+            items: {
+              realPriority: 'none'
+            },
             created_at: new Date(now).toISOString(),
             updated_at: new Date(now).toISOString()
           });
+          if (!error) {
+            setNotes(prev => prev.map(n => n.id === newId ? { ...n, synced: true } : n));
+          }
         } catch (e) {
           console.error('Failed to sync new streaks note:', e);
         }

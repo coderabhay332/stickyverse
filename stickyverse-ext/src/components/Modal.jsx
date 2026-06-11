@@ -183,7 +183,7 @@ const TEMPLATES_MAP = {
 };
 
 export function Modal({ type, onClose }) {
-  const { setNotes, user, supabase, editingNote, setEditingNote, premiumUnlocked, setShowPremiumModal } = useAppContext();
+  const { setNotes, user, supabase, editingNote, setEditingNote, premiumUnlocked, setShowPremiumModal, addDeletedNoteId } = useAppContext();
   const [title, setTitle] = useState(editingNote && editingNote.title ? editingNote.title : '');
   const [content, setContent] = useState(editingNote && editingNote.content ? editingNote.content : (type === 'checklist' || type === 'task') ? '[ ] ' : '');
   const [color, setColor] = useState(editingNote && editingNote.color ? editingNote.color : 'purple');
@@ -290,12 +290,15 @@ export function Modal({ type, onClose }) {
       color: ['purple', 'yellow', 'pink', 'green', 'blue', 'cream', 'dark'].includes(n.color) ? n.color : 'purple', // db enum valid value
       tag: n.tag || 'note',
       status: n.status || 'none',
-      priority: n.priority === 'none' ? null : (n.priority || 'medium'),
+      priority: ['low', 'medium', 'high', 'urgent'].includes(n.priority) ? n.priority : 'medium',
       pinned: !!n.pinned,
       starred: !!n.starred,
       items: {
         customColor: n.customColor || null,
-        fontColor: n.fontColor || null
+        fontColor: n.fontColor || null,
+        realPriority: n.priority || 'none',
+        reminder: n.reminder || null,
+        reminderTriggered: !!n.reminderTriggered
       },
       author: n.tag === 'quote' ? (n.title || '') : null,
       created_at: new Date(n.created).toISOString(),
@@ -325,12 +328,17 @@ export function Modal({ type, onClose }) {
         archived: false,
         created: Date.now(),
         updated: Date.now(),
+        synced: false
       };
 
       setNotes(prev => [newNote, ...prev]);
 
       if (user && supabase) {
-        Promise.resolve(supabase.from('notes').insert(toRow(newNote))).catch(console.error);
+        supabase.from('notes').insert(toRow(newNote)).then(({ error }) => {
+          if (!error) {
+            setNotes(prev => prev.map(n => n.id === newNote.id ? { ...n, synced: true } : n));
+          }
+        }).catch(console.error);
       }
     } else {
       setNotes(prev => prev.map(n => n.id === targetId ? {
@@ -346,7 +354,8 @@ export function Modal({ type, onClose }) {
         font,
         reminder: reminder || null,
         reminderTriggered: isReminderChanged ? false : n.reminderTriggered,
-        updated: Date.now()
+        updated: Date.now(),
+        synced: false
       } : n));
 
       const timer = setTimeout(() => {
@@ -363,10 +372,15 @@ export function Modal({ type, onClose }) {
             status,
             font,
             reminder: reminder || null,
+            reminderTriggered: isReminderChanged ? false : (editingNote ? editingNote.reminderTriggered : false),
             created: editingNote ? editingNote.created : Date.now(),
             updated: Date.now()
           };
-          Promise.resolve(supabase.from('notes').update(toRow(updatedNote)).eq('id', targetId)).catch(console.error);
+          supabase.from('notes').update(toRow(updatedNote)).eq('id', targetId).then(({ error }) => {
+            if (!error) {
+              setNotes(prev => prev.map(n => n.id === targetId ? { ...n, synced: true } : n));
+            }
+          }).catch(console.error);
         }
       }, 1000);
 
@@ -379,6 +393,7 @@ export function Modal({ type, onClose }) {
     if (hasCreatedRef.current && !title.trim() && !content.trim()) {
       const targetId = savedIdRef.current;
       setNotes(prev => prev.filter(n => n.id !== targetId));
+      addDeletedNoteId(targetId);
       if (user && supabase) {
         Promise.resolve(supabase.from('notes').delete().eq('id', targetId)).catch(console.error);
       }
@@ -391,6 +406,7 @@ export function Modal({ type, onClose }) {
     if (window.confirm('Delete this note?')) {
       const targetId = savedIdRef.current;
       setNotes(prev => prev.filter(n => n.id !== targetId));
+      addDeletedNoteId(targetId);
       if (user && supabase) {
         try {
           await supabase.from('notes').delete().eq('id', targetId);
