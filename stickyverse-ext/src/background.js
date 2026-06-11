@@ -71,6 +71,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
     return true;
   }
+
+  if (message.type === 'POMODORO_COMPLETE') {
+    // 1. Trigger native Chrome browser notification (pop up on user's system)
+    if (typeof chrome !== 'undefined' && chrome.notifications && chrome.notifications.create) {
+      chrome.notifications.create('pomodoro_complete_' + Date.now(), {
+        type: 'basic',
+        iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+        title: message.title,
+        message: message.body,
+        priority: 2
+      }, (id) => {
+        if (chrome.runtime.lastError) {
+          console.error('Pomodoro Notification Error:', chrome.runtime.lastError.message);
+        }
+      });
+    }
+
+    // 2. Broadcast SHOW_POMODORO_TOAST to all web tabs so the custom toast shows on screen
+    broadcastToNewTabs({
+      type: 'SHOW_POMODORO_TOAST',
+      title: message.title,
+      body: message.body
+    });
+
+    sendResponse({ success: true });
+    return true;
+  }
 });
 
 // Handle extension installation

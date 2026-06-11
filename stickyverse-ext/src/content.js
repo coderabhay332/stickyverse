@@ -348,4 +348,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ success: true });
     return true;
   }
+
+  if (message.type === 'SHOW_POMODORO_TOAST') {
+    console.log('StickyVerse content script received SHOW_POMODORO_TOAST:', message);
+    showAestheticToast('🍅', message.title, message.body);
+    sendResponse({ success: true });
+    return true;
+  }
 });

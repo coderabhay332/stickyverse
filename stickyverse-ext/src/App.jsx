@@ -97,16 +97,42 @@ export default function App() {
       setPomodoroTime(prev => {
         if (prev <= 1) {
           setIsPomodoroRunning(false);
-          if ('Notification' in window) {
-            if (Notification.permission === 'granted') {
-              new Notification("🍅 Pomodoro Complete!", {
-                body: "Great job! Take a short 5-minute break.",
-                icon: 'icons/icon32.png'
+          
+          const title = "🍅 Pomodoro Complete!";
+          const body = "Great job! Take a short 5-minute break.";
+
+          // Show on-screen toast locally in this tab
+          setToast({ title, body });
+          setTimeout(() => {
+            setToast(prevToast => {
+              if (prevToast && prevToast.title === title) return null;
+              return prevToast;
+            });
+          }, 8000);
+
+          // Tell the background service worker to trigger desktop notification and broadcast to other tabs
+          if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+            try {
+              const promise = chrome.runtime.sendMessage({
+                type: 'POMODORO_COMPLETE',
+                title,
+                body
               });
+              if (promise && typeof promise.catch === 'function') {
+                promise.catch(() => {});
+              }
+            } catch (e) {
+              // Ignore
+            }
+          } else {
+            // Fallback for non-extension environment
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification(title, { body, icon: 'icons/icon32.png' });
             } else {
-              alert("🍅 Pomodoro Complete!\n\nGreat job! Take a short 5-minute break.");
+              alert(`${title}\n\n${body}`);
             }
           }
+
           return 0;
         }
         return prev - 1;
