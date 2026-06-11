@@ -670,7 +670,7 @@ export function Modal({ type, onClose }) {
               <option value="none">— None —</option>
               <option value="in-progress">🔄 In Progress</option>
               <option value="completed">✅ Completed</option>
-              <option value="delayed">⏳ Delayed</option>
+              <option value="delayed">⚠️ Delayed</option>
               <option value="waiting">🕐 Waiting for Approval</option>
               <option value="cancelled">❌ Cancelled</option>
             </select>

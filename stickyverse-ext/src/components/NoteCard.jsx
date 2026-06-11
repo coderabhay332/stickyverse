@@ -13,7 +13,7 @@ const COLOR_MAP = {
 const STATUS_MAP = {
   'completed':   { label: '✅ Completed',            cls: 'status-completed'   },
   'in-progress': { label: '🔄 In Progress',          cls: 'status-in-progress' },
-  'delayed':     { label: '⏳ Delayed',               cls: 'status-delayed'     },
+  'delayed':     { label: '⚠️ Delayed',               cls: 'status-delayed'     },
   'waiting':     { label: '🕐 Waiting for Approval', cls: 'status-waiting'     },
   'cancelled':   { label: '❌ Cancelled',             cls: 'status-cancelled'   },
 };
@@ -340,12 +340,47 @@ export function NoteCard({ note, index }) {
       >
         {/* Status Badge */}
         {note.status && note.status !== 'none' && STATUS_MAP[note.status] && (
-          <div 
-            className={`note-status ${STATUS_MAP[note.status].cls}`}
-            onClick={handleCycleStatus}
-            style={{ cursor: 'pointer', display: 'inline-block' }}
-          >
-            {STATUS_MAP[note.status].label}
+          <div className="note-status-badge-wrapper" style={{ position: 'relative', display: 'inline-block', marginBottom: '8px' }}>
+            <select
+              value={note.status || 'none'}
+              onChange={async (e) => {
+                const updated = { ...note, status: e.target.value, updated: Date.now(), synced: false };
+                setNotes(prev => prev.map(n => n.id === note.id ? updated : n));
+                if (user && supabase) {
+                  try {
+                    const { error } = await supabase.from('notes').update({ status: updated.status, updated_at: new Date(updated.updated).toISOString() }).eq('id', note.id);
+                    if (!error) {
+                      setNotes(prev => prev.map(n => n.id === note.id ? { ...n, synced: true } : n));
+                    }
+                  } catch (err) {
+                    console.error(err);
+                  }
+                }
+              }}
+              style={{
+                opacity: 0,
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                cursor: 'pointer',
+                zIndex: 2
+              }}
+            >
+              <option value="none">🏷️ None</option>
+              <option value="in-progress">🔄 In Progress</option>
+              <option value="completed">✅ Completed</option>
+              <option value="delayed">⚠️ Delayed</option>
+              <option value="waiting">🕐 Waiting</option>
+              <option value="cancelled">❌ Cancelled</option>
+            </select>
+            <div 
+              className={`note-status ${STATUS_MAP[note.status].cls}`}
+              style={{ display: 'inline-block', margin: 0 }}
+            >
+              {STATUS_MAP[note.status].label}
+            </div>
           </div>
         )}
 
@@ -550,7 +585,44 @@ export function NoteCard({ note, index }) {
                 ))}
               </div>
             </div>
-            <button className="note-action-btn" onClick={handleCycleStatus} title="Cycle Status">🏷️</button>
+            <div className="note-status-select-wrapper" style={{ position: 'relative', display: 'inline-block' }}>
+              <select
+                value={note.status || 'none'}
+                onChange={async (e) => {
+                  const updated = { ...note, status: e.target.value, updated: Date.now(), synced: false };
+                  setNotes(prev => prev.map(n => n.id === note.id ? updated : n));
+                  if (user && supabase) {
+                    try {
+                      const { error } = await supabase.from('notes').update({ status: updated.status, updated_at: new Date(updated.updated).toISOString() }).eq('id', note.id);
+                      if (!error) {
+                        setNotes(prev => prev.map(n => n.id === note.id ? { ...n, synced: true } : n));
+                      }
+                    } catch (err) {
+                      console.error(err);
+                    }
+                  }
+                }}
+                title="Set Status"
+                style={{
+                  opacity: 0,
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  cursor: 'pointer',
+                  zIndex: 2
+                }}
+              >
+                <option value="none">🏷️ Set Status: None</option>
+                <option value="in-progress">🔄 In Progress</option>
+                <option value="completed">✅ Completed</option>
+                <option value="delayed">⚠️ Delayed</option>
+                <option value="waiting">🕐 Waiting</option>
+                <option value="cancelled">❌ Cancelled</option>
+              </select>
+              <button className="note-action-btn" title="Set Status" style={{ pointerEvents: 'none' }}>🏷️</button>
+            </div>
             <button className="note-action-btn" onClick={handleArchive} title="Archive">📦</button>
           </>
         ) : (

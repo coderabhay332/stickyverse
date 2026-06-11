@@ -42,7 +42,8 @@ export function NotesGrid() {
     if (filter === 'link') {
       arr = mappedLinks;
     } else if (filter === 'all') {
-      arr = [...arr, ...mappedLinks];
+      // Keep only notes, do not merge mappedLinks
+      arr = arr;
     } else {
       arr = arr.filter(n => n && n.tag === filter);
     }

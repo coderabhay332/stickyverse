@@ -802,7 +802,7 @@ export default function App() {
           {view === 'home' && (
             <div className="filter-bar">
               <div className="filter-tabs">
-                {['all','note','task','idea','quote','link'].map(f => (
+                {['all','note','task','idea','quote'].map(f => (
                   <button
                     key={f}
                     className={`filter-tab ${filter === f ? 'active' : ''}`}

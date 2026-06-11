@@ -44,31 +44,53 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   
   if (message.type === 'CLIENT_REMINDER_TRIGGERED') {
-    chrome.storage.local.set({ sv_notes: message.notes })
-      .then(() => {
-        // Broadcast to other tabs so they don't fire again
-        if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
-          chrome.tabs.query({}, (tabs) => {
-            tabs.forEach(tab => {
-              if (tab && tab.id && tab.id !== sender.tab?.id) {
-                try {
-                  chrome.tabs.sendMessage(tab.id, {
-                    type: 'NOTES_UPDATED_BACKGROUND',
-                    notes: message.notes
-                  });
-                } catch (e) {
-                  // Ignore
-                }
-              }
-            });
-          });
-        }
-        sendResponse({ success: true });
-      })
-      .catch(error => {
-        console.error('Failed to update notes on client reminder trigger:', error);
-        sendResponse({ success: false, error: error.message });
+    chrome.storage.local.get(['sv_notes'], (res) => {
+      const prevNotes = res.sv_notes || [];
+      
+      // Find notes that transitioned to triggered in this message
+      const triggeredNotes = (message.notes || []).filter(note => {
+        const prevNote = prevNotes.find(p => p.id === note.id);
+        return note.reminderTriggered && (!prevNote || !prevNote.reminderTriggered);
       });
+
+      // For each newly triggered note, broadcast SHOW_TOAST to all tabs
+      triggeredNotes.forEach(note => {
+        broadcastToNewTabs({
+          type: 'SHOW_TOAST',
+          title: `⏰ Reminder: ${note.title || 'StickyVerse Task'}`,
+          body: note.content || 'Your scheduled reminder has arrived!'
+        });
+      });
+
+      chrome.storage.local.set({ sv_notes: message.notes })
+        .then(() => {
+          // Broadcast to other tabs so they don't fire again
+          if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
+            chrome.tabs.query({}, (tabs) => {
+              tabs.forEach(tab => {
+                if (tab && tab.id && tab.id !== sender.tab?.id) {
+                  try {
+                    chrome.tabs.sendMessage(tab.id, {
+                      type: 'NOTES_UPDATED_BACKGROUND',
+                      notes: message.notes
+                    }, () => {
+                      // Access runtime lastError to suppress the 'Could not establish connection' warning
+                      const err = chrome.runtime.lastError;
+                    });
+                  } catch (e) {
+                    // Ignore
+                  }
+                }
+              });
+            });
+          }
+          sendResponse({ success: true });
+        })
+        .catch(error => {
+          console.error('Failed to update notes on client reminder trigger:', error);
+          sendResponse({ success: false, error: error.message });
+        });
+    });
     return true;
   }
 
