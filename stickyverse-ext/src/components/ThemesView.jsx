@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
-import { useAppContext } from '../App';
+import { useAppContext, getAssetUrl } from '../App';
+import macbg from '../background/macbg.png';
+import mixbg from '../background/mixbg.png';
 
 const WALLPAPERS = [
   { id: 'none', name: 'None (Solid Color)', url: 'none', preview: 'rgba(255,255,255,0.05)' },
+  { id: 'macbg', name: 'Mac Background 🖥️', url: macbg, preview: macbg },
+  { id: 'mixbg', name: 'Mix Background 🎨', url: mixbg, preview: mixbg },
   { id: 'lofi', name: 'Lofi Desk ☕', url: 'https://images.unsplash.com/photo-1518495973542-4542c06a5843?q=80&w=1200', preview: 'https://images.unsplash.com/photo-1518495973542-4542c06a5843?q=80&w=120' },
   { id: 'cyber', name: 'Neon City 🌌', url: 'https://images.unsplash.com/photo-1508739773434-c26b3d09e071?q=80&w=1200', preview: 'https://images.unsplash.com/photo-1508739773434-c26b3d09e071?q=80&w=120' },
   { id: 'minimal', name: 'Warm Textures 🍃', url: 'https://images.unsplash.com/photo-1557683316-973673baf926?q=80&w=1200', preview: 'https://images.unsplash.com/photo-1557683316-973673baf926?q=80&w=120' },
@@ -18,7 +22,7 @@ export function ThemesView() {
   );
 
   const handleSelectWallpaper = (url) => {
-    if (url !== 'none' && !premiumUnlocked) {
+    if (url !== 'none' && url !== macbg && url !== mixbg && !premiumUnlocked) {
       setShowPremiumModal(true);
       return;
     }
@@ -95,7 +99,7 @@ export function ThemesView() {
                   height: '84px',
                   borderRadius: '12px',
                   border: isSelected ? '2.5px solid #d2bbff' : '1.5px solid rgba(255,255,255,0.08)',
-                  background: isNone ? w.preview : `linear-gradient(rgba(0,0,0,0.1), rgba(0,0,0,0.1)), url(${w.preview})`,
+                  background: isNone ? w.preview : `linear-gradient(rgba(0,0,0,0.1), rgba(0,0,0,0.1)), url(${getAssetUrl(w.preview)})`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                   cursor: 'pointer',
@@ -108,7 +112,7 @@ export function ThemesView() {
                 }}
                 title={w.name}
               >
-                {!isNone && !premiumUnlocked && (
+                {!isNone && w.id !== 'macbg' && w.id !== 'mixbg' && !premiumUnlocked && (
                   <div style={{
                     position: 'absolute',
                     top: '6px',

@@ -183,7 +183,7 @@ const TEMPLATES_MAP = {
 };
 
 export function Modal({ type, onClose }) {
-  const { setNotes, user, supabase, editingNote, setEditingNote, premiumUnlocked, setShowPremiumModal, addDeletedNoteId } = useAppContext();
+  const { setNotes, user, supabase, editingNote, setEditingNote, premiumUnlocked, setShowPremiumModal, addDeletedNoteId, customStatuses, addCustomStatus } = useAppContext();
   const [title, setTitle] = useState(editingNote && editingNote.title ? editingNote.title : '');
   const [content, setContent] = useState(editingNote && editingNote.content ? editingNote.content : (type === 'checklist' || type === 'task') ? '[ ] ' : '');
   const [color, setColor] = useState(editingNote && editingNote.color ? editingNote.color : 'purple');
@@ -664,7 +664,21 @@ export function Modal({ type, onClose }) {
             <select
               className="glass-select"
               value={status}
-              onChange={e => setStatus(e.target.value)}
+              onChange={e => {
+                const val = e.target.value;
+                if (val === 'ADD_CUSTOM_STATUS') {
+                  const newStatus = prompt("Enter new custom work status:");
+                  if (newStatus) {
+                    const trimmed = newStatus.trim();
+                    if (trimmed) {
+                      addCustomStatus(trimmed);
+                      setStatus(trimmed);
+                    }
+                  }
+                } else {
+                  setStatus(val);
+                }
+              }}
               style={{ width: '100%', padding: '8px 12px', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', outline: 'none' }}
             >
               <option value="none">— None —</option>
@@ -673,6 +687,13 @@ export function Modal({ type, onClose }) {
               <option value="delayed">⚠️ Delayed</option>
               <option value="waiting">🕐 Waiting for Approval</option>
               <option value="cancelled">❌ Cancelled</option>
+              {customStatuses && customStatuses.map(cs => (
+                <option key={cs} value={cs}>📌 {cs}</option>
+              ))}
+              {status && !['none', 'completed', 'in-progress', 'delayed', 'waiting', 'cancelled'].includes(status) && !customStatuses.includes(status) && (
+                <option value={status}>📌 {status}</option>
+              )}
+              <option value="ADD_CUSTOM_STATUS">+ Add Custom Status...</option>
             </select>
           </div>
 

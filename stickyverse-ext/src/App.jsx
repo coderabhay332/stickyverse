@@ -17,6 +17,18 @@ import { useLocalStorage } from './hooks/useLocalStorage';
 import { generateUUID } from './utils/uuid';
 import './styles/globals.css';
 
+export const getAssetUrl = (path) => {
+  if (!path || path === 'none') return '';
+  if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('chrome-extension:')) {
+    return path;
+  }
+  const relativePath = path.startsWith('dist/') ? path : `dist/${path}`;
+  if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
+    return chrome.runtime.getURL(relativePath);
+  }
+  return relativePath;
+};
+
 // ─── Theme Definitions ─────────────────────────────────────────────────────────
 export const THEMES = [
   { id:'void',    label:'Dark Void',  em:'🌑', bg:'#0C0A1E', b1:'#7C3AED', b2:'#4C1D95', b3:'#6D28D9', b4:'#EC4899', accent:'#A78BFA', text:'#ffffff', sidebar:'rgba(12,10,30,0.92)' },
@@ -84,6 +96,40 @@ export default function App() {
     high: '#f97316',
     urgent: '#ef4444',
   });
+
+  const [customStatuses, setCustomStatuses] = useLocalStorage('sv_custom_statuses', []);
+
+  const addCustomStatus = (statusName) => {
+    if (!statusName) return;
+    const trimmed = statusName.trim();
+    if (!trimmed) return;
+    setCustomStatuses(prev => prev.includes(trimmed) ? prev : [...prev, trimmed]);
+  };
+
+  useEffect(() => {
+    if (notes && notes.length > 0) {
+      const standardStatuses = ['none', 'completed', 'in-progress', 'delayed', 'waiting', 'cancelled'];
+      const foundCustoms = [];
+      notes.forEach(note => {
+        if (note.status && !standardStatuses.includes(note.status)) {
+          foundCustoms.push(note.status);
+        }
+      });
+      if (foundCustoms.length > 0) {
+        setCustomStatuses(prev => {
+          let updated = false;
+          const next = [...prev];
+          foundCustoms.forEach(cs => {
+            if (!next.includes(cs)) {
+              next.push(cs);
+              updated = true;
+            }
+          });
+          return updated ? next : prev;
+        });
+      }
+    }
+  }, [notes, setCustomStatuses]);
 
   // Pomodoro Timer State
   const [pomodoroTime, setPomodoroTime] = useState(25 * 60);
@@ -318,7 +364,7 @@ export default function App() {
     root.style.setProperty('--theme-sidebar', t.sidebar);
     
     if (wallpaper && wallpaper !== 'none') {
-      document.body.style.backgroundImage = `linear-gradient(rgba(12, 10, 30, 0.45), rgba(12, 10, 30, 0.45)), url(${wallpaper})`;
+      document.body.style.backgroundImage = `linear-gradient(rgba(12, 10, 30, 0.45), rgba(12, 10, 30, 0.45)), url(${getAssetUrl(wallpaper)})`;
       document.body.style.backgroundSize = 'cover';
       document.body.style.backgroundPosition = 'center';
       document.body.style.backgroundAttachment = 'fixed';
@@ -590,12 +636,56 @@ export default function App() {
                   if (error) {
                     console.error('Failed to sync newer local note:', error.message);
                   }
-                });
+                 });
+               } else {
+                 // Cloud is newer or same -> keep cloud (which has synced: true)
+               }
+             }
+           });
+
+          // Deduplicate onboarding notes
+          const DEMO_TITLES = [
+            'Welcome to StickyVerse ✨',
+            "Today's Tasks 📋",
+            'Quick Idea 💡',
+            'Inspiration 🌊',
+            'Meeting Notes'
+          ];
+          const uniqueNotes = [];
+          const duplicatesToDelete = [];
+          
+          merged.forEach(note => {
+            if (note.title && DEMO_TITLES.includes(note.title)) {
+              const isDuplicate = uniqueNotes.find(u => u.title === note.title);
+              if (isDuplicate) {
+                duplicatesToDelete.push(note.id);
               } else {
-                // Cloud is newer or same -> keep cloud (which has synced: true)
+                uniqueNotes.push(note);
               }
+            } else {
+              uniqueNotes.push(note);
             }
           });
+
+          if (duplicatesToDelete.length > 0) {
+            console.log('Deduplicating notes, deleting:', duplicatesToDelete);
+            if (supabase && user) {
+              supabase.from('notes').delete().in('id', duplicatesToDelete).then(({ error }) => {
+                if (error) {
+                  console.error('Failed to delete duplicate notes from Supabase:', error.message);
+                }
+              });
+            }
+            setDeletedNoteIds(prevDel => {
+              const nextDel = [...prevDel];
+              duplicatesToDelete.forEach(id => {
+                if (!nextDel.includes(id)) nextDel.push(id);
+              });
+              return nextDel;
+            });
+            return uniqueNotes;
+          }
+
           return merged;
         });
 
@@ -680,7 +770,8 @@ export default function App() {
 
   // Demo notes seed
   useEffect(() => {
-    if (notes.length === 0) {
+    const seeded = window.localStorage.getItem('sv_demo_seeded');
+    if (!seeded && notes.length === 0) {
       const isUserLoggedIn = !!user;
       setNotes([
         {
@@ -719,8 +810,11 @@ export default function App() {
           synced: false
         },
       ]);
+      window.localStorage.setItem('sv_demo_seeded', 'true');
+    } else if (notes.length > 0 && !seeded) {
+      window.localStorage.setItem('sv_demo_seeded', 'true');
     }
-  }, [user]);
+  }, [user, notes.length]);
 
   const ctx = {
     notes, setNotes, links, setLinks, goals, setGoals,
@@ -743,7 +837,8 @@ export default function App() {
     pomodoroTime, setPomodoroTime,
     pomodoroTotal,
     isPomodoroRunning, setIsPomodoroRunning,
-    handleStartPomodoro
+    handleStartPomodoro,
+    customStatuses, setCustomStatuses, addCustomStatus
   };
 
   if (authLoading) {

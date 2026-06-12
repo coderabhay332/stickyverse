@@ -40,7 +40,7 @@ const getContrastColor = (hex) => {
 };
 
 export function NoteCard({ note, index }) {
-  const { setNotes, setLinks, user, supabase, setEditingNote, setModalType, setModalOpen, priorityColors, addDeletedNoteId, addDeletedLinkId } = useAppContext();
+  const { setNotes, setLinks, user, supabase, setEditingNote, setModalType, setModalOpen, priorityColors, addDeletedNoteId, addDeletedLinkId, customStatuses, addCustomStatus } = useAppContext();
   const [hovered, setHovered] = useState(false);
 
   const bgColor = COLOR_MAP[note.color] || '#EDE9FE';
@@ -339,12 +339,28 @@ export function NoteCard({ note, index }) {
         }}
       >
         {/* Status Badge */}
-        {note.status && note.status !== 'none' && STATUS_MAP[note.status] && (
+        {note.status && note.status !== 'none' && (
           <div className="note-status-badge-wrapper" style={{ position: 'relative', display: 'inline-block', marginBottom: '8px' }}>
             <select
               value={note.status || 'none'}
               onChange={async (e) => {
-                const updated = { ...note, status: e.target.value, updated: Date.now(), synced: false };
+                const val = e.target.value;
+                let finalStatus = val;
+                if (val === 'ADD_CUSTOM_STATUS') {
+                  const newStatus = prompt("Enter new custom work status:");
+                  if (newStatus) {
+                    const trimmed = newStatus.trim();
+                    if (trimmed) {
+                      addCustomStatus(trimmed);
+                      finalStatus = trimmed;
+                    } else {
+                      return;
+                    }
+                  } else {
+                    return;
+                  }
+                }
+                const updated = { ...note, status: finalStatus, updated: Date.now(), synced: false };
                 setNotes(prev => prev.map(n => n.id === note.id ? updated : n));
                 if (user && supabase) {
                   try {
@@ -374,13 +390,25 @@ export function NoteCard({ note, index }) {
               <option value="delayed">⚠️ Delayed</option>
               <option value="waiting">🕐 Waiting</option>
               <option value="cancelled">❌ Cancelled</option>
+              {customStatuses && customStatuses.map(cs => (
+                <option key={cs} value={cs}>📌 {cs}</option>
+              ))}
+              {note.status && !['none', 'completed', 'in-progress', 'delayed', 'waiting', 'cancelled'].includes(note.status) && !customStatuses.includes(note.status) && (
+                <option value={note.status}>📌 {note.status}</option>
+              )}
+              <option value="ADD_CUSTOM_STATUS">+ Add Custom Status...</option>
             </select>
-            <div 
-              className={`note-status ${STATUS_MAP[note.status].cls}`}
-              style={{ display: 'inline-block', margin: 0 }}
-            >
-              {STATUS_MAP[note.status].label}
-            </div>
+            {(() => {
+              const statusInfo = STATUS_MAP[note.status] || { label: `📌 ${note.status}`, cls: 'status-custom' };
+              return (
+                <div 
+                  className={`note-status ${statusInfo.cls}`}
+                  style={{ display: 'inline-block', margin: 0 }}
+                >
+                  {statusInfo.label}
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -589,7 +617,23 @@ export function NoteCard({ note, index }) {
               <select
                 value={note.status || 'none'}
                 onChange={async (e) => {
-                  const updated = { ...note, status: e.target.value, updated: Date.now(), synced: false };
+                  const val = e.target.value;
+                  let finalStatus = val;
+                  if (val === 'ADD_CUSTOM_STATUS') {
+                    const newStatus = prompt("Enter new custom work status:");
+                    if (newStatus) {
+                      const trimmed = newStatus.trim();
+                      if (trimmed) {
+                        addCustomStatus(trimmed);
+                        finalStatus = trimmed;
+                      } else {
+                        return;
+                      }
+                    } else {
+                      return;
+                    }
+                  }
+                  const updated = { ...note, status: finalStatus, updated: Date.now(), synced: false };
                   setNotes(prev => prev.map(n => n.id === note.id ? updated : n));
                   if (user && supabase) {
                     try {
@@ -620,6 +664,13 @@ export function NoteCard({ note, index }) {
                 <option value="delayed">⚠️ Delayed</option>
                 <option value="waiting">🕐 Waiting</option>
                 <option value="cancelled">❌ Cancelled</option>
+                {customStatuses && customStatuses.map(cs => (
+                  <option key={cs} value={cs}>📌 {cs}</option>
+                ))}
+                {note.status && !['none', 'completed', 'in-progress', 'delayed', 'waiting', 'cancelled'].includes(note.status) && !customStatuses.includes(note.status) && (
+                  <option value={note.status}>📌 {note.status}</option>
+                )}
+                <option value="ADD_CUSTOM_STATUS">+ Add Custom Status...</option>
               </select>
               <button className="note-action-btn" title="Set Status" style={{ pointerEvents: 'none' }}>🏷️</button>
             </div>

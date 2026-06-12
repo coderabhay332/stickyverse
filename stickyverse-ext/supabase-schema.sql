@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS public.notes (
     style TEXT DEFAULT 'regular' CHECK (style IN ('regular', 'notebook', 'tape', 'polaroid')),
     color TEXT DEFAULT 'purple' CHECK (color IN ('purple', 'yellow', 'pink', 'green', 'blue', 'cream', 'dark')),
     tag TEXT DEFAULT 'note' CHECK (tag IN ('note', 'task', 'idea', 'quote')),
-    status TEXT DEFAULT 'none' CHECK (status IN ('none', 'completed', 'in-progress', 'delayed', 'waiting', 'cancelled')),
+    status TEXT DEFAULT 'none',
     priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
     pinned BOOLEAN DEFAULT FALSE,
     starred BOOLEAN DEFAULT FALSE,
