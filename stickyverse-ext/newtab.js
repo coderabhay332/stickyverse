@@ -1167,6 +1167,7 @@ function noteToDbRow(note) {
     priority: (note.priority && note.priority !== 'none') ? note.priority : 'medium',
     pinned: note.pinned || false,
     starred: note.starred || false,
+    archived: note.archived || false,
     has_tape: note.hasTape || false,
     tape_color: note.tapeColor || null,
     pin: note.pin || null,

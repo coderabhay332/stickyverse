@@ -4,11 +4,24 @@ import { NoteCard } from './NoteCard';
 import { EmptyState } from './EmptyState';
 
 export function ArchiveView() {
-  const { notes, setNotes } = useAppContext();
+  const { notes, setNotes, user, supabase } = useAppContext();
   const archived = notes.filter(n => n.archived && n.title !== '__sv_streaks__');
 
-  const handleRestore = (id) => {
-    setNotes(prev => prev.map(n => n.id === id ? { ...n, archived: false } : n));
+  const handleRestore = async (id) => {
+    const updated = notes.find(n => n.id === id);
+    if (!updated) return;
+    const restored = { ...updated, archived: false, updated: Date.now(), synced: false };
+    setNotes(prev => prev.map(n => n.id === id ? restored : n));
+    if (user && supabase) {
+      try {
+        const { error } = await supabase.from('notes').update({ archived: false, updated_at: new Date(restored.updated).toISOString() }).eq('id', id);
+        if (!error) {
+          setNotes(prev => prev.map(n => n.id === id ? { ...n, synced: true } : n));
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
   };
 
   return (

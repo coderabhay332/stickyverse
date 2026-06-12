@@ -293,6 +293,7 @@ export function Modal({ type, onClose }) {
       priority: ['low', 'medium', 'high', 'urgent'].includes(n.priority) ? n.priority : 'medium',
       pinned: !!n.pinned,
       starred: !!n.starred,
+      archived: !!n.archived,
       items: {
         customColor: n.customColor || null,
         fontColor: n.fontColor || null,

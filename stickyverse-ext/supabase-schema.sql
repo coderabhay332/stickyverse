@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS public.notes (
     priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
     pinned BOOLEAN DEFAULT FALSE,
     starred BOOLEAN DEFAULT FALSE,
+    archived BOOLEAN DEFAULT FALSE,
     has_tape BOOLEAN DEFAULT FALSE,
     tape_color TEXT,
     pin TEXT,

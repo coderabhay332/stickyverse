@@ -589,6 +589,7 @@ export default function App() {
                   priority: priorityValue,
                   pinned: !!local.pinned,
                   starred: !!local.starred,
+                  archived: !!local.archived,
                   items: {
                     customColor: local.customColor || null,
                     fontColor: local.fontColor || null,
@@ -624,6 +625,7 @@ export default function App() {
                    priority: priorityValue,
                    pinned: !!local.pinned,
                    starred: !!local.starred,
+                   archived: !!local.archived,
                    items: {
                      customColor: local.customColor || null,
                      fontColor: local.fontColor || null,

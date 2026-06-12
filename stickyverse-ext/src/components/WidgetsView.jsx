@@ -109,6 +109,7 @@ export function WidgetsView() {
             priority: 'medium',
             pinned: false,
             starred: false,
+            archived: false,
             items: {
               realPriority: 'none'
             },

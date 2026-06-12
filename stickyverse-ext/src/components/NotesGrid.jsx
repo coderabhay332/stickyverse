@@ -269,6 +269,7 @@ export function NotesGrid() {
           priority: ['low', 'medium', 'high', 'urgent'].includes(newNote.priority) ? newNote.priority : 'medium',
           pinned: !!newNote.pinned,
           starred: !!newNote.starred,
+          archived: !!newNote.archived,
           items: {
             realPriority: newNote.priority || 'none'
           },
