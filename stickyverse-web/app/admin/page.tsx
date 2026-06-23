@@ -11,11 +11,19 @@ interface WaitlistEntry {
   created_at: string;
 }
 
+interface ProfileEntry {
+  id: string;
+  email: string;
+  name: string;
+  created_at: string;
+}
+
 export default function AdminDashboard() {
   const [passkey, setPasskey] = useState('');
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [entries, setEntries] = useState<WaitlistEntry[]>([]);
+  const [profiles, setProfiles] = useState<ProfileEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Check if authorized in current session
@@ -32,15 +40,21 @@ export default function AdminDashboard() {
   const fetchEntries = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('waitlist')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const [waitlistRes, profilesRes] = await Promise.all([
+        supabase.from('waitlist').select('*').order('created_at', { ascending: false }),
+        supabase.from('users').select('*').order('created_at', { ascending: false }),
+      ]);
 
-      if (error) {
-        console.error('Error fetching waitlist:', error.message);
-      } else if (data) {
-        setEntries(data as WaitlistEntry[]);
+      if (waitlistRes.error) {
+        console.error('Error fetching waitlist:', waitlistRes.error.message);
+      } else if (waitlistRes.data) {
+        setEntries(waitlistRes.data as WaitlistEntry[]);
+      }
+
+      if (profilesRes.error) {
+        console.error('Error fetching profiles:', profilesRes.error.message);
+      } else if (profilesRes.data) {
+        setProfiles(profilesRes.data as ProfileEntry[]);
       }
     } catch (err) {
       console.error('Fetch failed:', err);
@@ -66,32 +80,40 @@ export default function AdminDashboard() {
     setIsAuthorized(false);
     sessionStorage.removeItem('sv_admin_auth');
     setEntries([]);
+    setProfiles([]);
     setPasskey('');
   };
 
   const handleDownloadCSV = () => {
-    if (entries.length === 0) {
+    if (entries.length === 0 && profiles.length === 0) {
       alert('No entries to export!');
       return;
     }
 
-    const headers = ['Email', 'Signup Date'];
-    const rows = entries.map(entry => [
+    const headers = ['Type', 'Email', 'Name', 'Signup Date'];
+    const waitlistRows = entries.map(entry => [
+      'Waitlist',
       entry.email,
+      '',
       new Date(entry.created_at).toLocaleString()
+    ]);
+    const profileRows = profiles.map(p => [
+      'Signed Up',
+      p.email,
+      p.name || '',
+      new Date(p.created_at).toLocaleString()
     ]);
 
     const csvContent = [
       headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(','))
+      ...[...waitlistRows, ...profileRows].map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(','))
     ].join('\n');
 
-    // Prepend UTF-8 BOM
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `stickyverse_waitlist_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `stickyverse_users_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -281,10 +303,24 @@ export default function AdminDashboard() {
             flex: 1
           }}>
             <div style={{ fontSize: '12px', color: 'rgba(240, 238, 255, 0.4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Total Signups
+              Waitlist Signups
             </div>
             <div style={{ fontSize: '36px', fontWeight: 800, marginTop: '8px', color: '#A78BFA' }}>
               {entries.length}
+            </div>
+          </div>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            borderRadius: '12px',
+            padding: '20px',
+            flex: 1
+          }}>
+            <div style={{ fontSize: '12px', color: 'rgba(240, 238, 255, 0.4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Registered Users
+            </div>
+            <div style={{ fontSize: '36px', fontWeight: 800, marginTop: '8px', color: '#10B981' }}>
+              {profiles.length}
             </div>
           </div>
         </div>
@@ -342,6 +378,56 @@ export default function AdminDashboard() {
                         >
                           Delete
                         </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Registered Users Table */}
+        <h2 style={{ fontSize: '18px', fontWeight: 700, marginTop: '40px', marginBottom: '16px' }}>
+          Registered Users 👤
+        </h2>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.02)',
+          border: '1px solid rgba(255, 255, 255, 0.06)',
+          borderRadius: '12px',
+          overflow: 'hidden'
+        }}>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(240, 238, 255, 0.5)' }}>
+              Loading users...
+            </div>
+          ) : profiles.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(240, 238, 255, 0.5)' }}>
+              No registered users yet.
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'rgba(240, 238, 255, 0.6)' }}>Name</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'rgba(240, 238, 255, 0.6)' }}>Email</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'rgba(240, 238, 255, 0.6)' }}>Joined</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {profiles.map((profile, idx) => (
+                    <tr
+                      key={profile.id}
+                      style={{
+                        borderBottom: idx === profiles.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.04)',
+                        background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)'
+                      }}
+                    >
+                      <td style={{ padding: '14px 16px', fontWeight: 500 }}>{profile.name || '—'}</td>
+                      <td style={{ padding: '14px 16px' }}>{profile.email}</td>
+                      <td style={{ padding: '14px 16px', color: 'rgba(240, 238, 255, 0.6)' }}>
+                        {new Date(profile.created_at).toLocaleString()}
                       </td>
                     </tr>
                   ))}
